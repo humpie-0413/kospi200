@@ -88,7 +88,7 @@ FastAPI 14개 엔드포인트 → Toss 스타일 UI
 ## 데이터 현황 (2026-03-09 기준)
 | 구분 | 피처수 | 커버리지 | 갱신 |
 |------|--------|----------|------|
-| OHLCV 파생 | 17 (14+RSI/MACD/BB) | 100% | 일별 자동 |
+| OHLCV 파생 | 16 (14+RSI/BB, MACD제거) | 100% | 일별 자동 |
 | 뉴스 감성 | 6 | 갭 해소 | 일별 자동 |
 | ESG | 4 | 갭 해소 | 일별 자동 |
 | 재무(DART) | 5 | 86% | 연간 |
@@ -149,6 +149,7 @@ Step 6:  MySQL 리로드
 - 뉴스/ESG: 일별 자동 갱신 중이나 과거 갭(~2024-12-31) 존재
 - ticker zfill(6) 매핑 필요 (DB는 leading zero 없음)
 - dataset_daily 파일 잔존 시 Track A가 최신 패널 무시 (반드시 삭제)
+- Track A L8 앙상블: 모든 모델이 동일 feature_weights 사용 → 앙상블 가중치 변경 무의미 (코드 개선 필요)
 - ~~보안: .env에 API키/비밀번호 포함~~ → 시크릿 제거 완료, .env.example 제공
 - 테스트 코드 거의 없음, CI/CD 미구축
 
@@ -159,8 +160,8 @@ Step 6:  MySQL 리로드
 4. ~~6개 아이디어 분석 리포트~~ → 완료 (`docs/idea_analysis_report.md`)
 5. ~~관리자 대시보드 강화~~ → 완료 (`checkpoints/STAGE_ADMIN_DASHBOARD.md`)
 6. ~~GitHub 배포~~ → 완료 (https://github.com/humpie-0413/kospi200)
-7. ~~기술적 지표 추가~~ → 완료 (RSI_14, MACD_signal, bollinger_pctb, Session B1)
-8. **예측 최적화** (XGB 정규화, 앙상블 가중치 조정)
+7. ~~기술적 지표 추가~~ → 완료 (RSI_14, bollinger_pctb; MACD_signal IC≈0 제거, Session B1+B2)
+8. ~~예측 최적화~~ → Quick Win 완료 (XGB l5 정규화, MACD 제거, `checkpoints/STAGE_MODEL_RETRAIN.md`)
 9. **backtest 페이지 디자인**: rankings와 동일 Toss 스타일 적용
 10. **외부 지수 통합** (FMP API: VIX/S&P500/WTI/금리 → 시장 국면 모듈)
 11. **커스텀 랭킹 + 구독** (z-score 매트릭스 + 사용자 피처 선택 + 결제)
