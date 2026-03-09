@@ -1,0 +1,36 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(pip install:*)",
+      "Bash(python:*)",
+      "Bash(pip check:*)",
+      "Bash(grep:*)",
+      "Bash(docker ps:*)",
+      "Bash(docker run:*)",
+      "Bash(netstat:*)",
+      "Bash(taskkill:*)",
+      "Bash(uvicorn app.main:app:*)",
+      "Bash(curl:*)",
+      "Bash(docker:*)",
+      "Bash(ls:*)",
+      "Bash(python 2:*)",
+      "Bash(wc:*)",
+      "Bash(tasklist:*)",
+      "Bash(while read pid)",
+      "Bash(do taskkill //PID $pid //F)",
+      "Bash(done)",
+      "Bash(cp:*)",
+      "Bash(__NEW_LINE_983c4fdce3b5dc83__ echo \"\")",
+      "Bash(__NEW_LINE_725fa6dbcad6365e__ echo \"\")",
+      "Bash(__NEW_LINE_8b626e7143acdcd4__ echo \"\")",
+      "Bash(__NEW_LINE_26b696a7ae6aeceb__ echo \"\")",
+      "Bash(python3:*)",
+      "Bash(# Restart server tasklist)",
+      "Bash(# Kill all python and restart tasklist)",
+      "Bash(pip list:*)",
+      "Bash(mkdir:*)",
+      "Bash(rm:*)",
+      "Bash(grep uvicorn:*)"
+    ]
+  }
+}

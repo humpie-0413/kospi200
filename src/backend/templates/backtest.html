@@ -1,0 +1,273 @@
+{% extends "base.html" %}
+{% block title %}Backtest - KOSPI200{% endblock %}
+
+{% block head %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js@3.9.1/dist/chart.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/chartjs-adapter-date-fns@2.0.0/dist/chartjs-adapter-date-fns.bundle.min.js"></script>
+{% endblock %}
+
+{% block content %}
+<!-- Header -->
+<div class="page-header">
+  <h1 class="page-title"><i class="bi bi-graph-up-arrow"></i> 백테스트 성과</h1>
+</div>
+
+<!-- Control Panel -->
+<div class="control-panel">
+  <h5 class="mb-3" style="font-size:20px"><i class="bi bi-sliders"></i> 백테스트 설정</h5>
+
+  <div class="strategy-tabs mb-3">
+    <button class="strategy-tab active" id="tab-bt20_short" onclick="selectStrategy('bt20_short')">
+      SHORT (20일 Holding)
+    </button>
+    <button class="strategy-tab" id="tab-bt120_long" onclick="selectStrategy('bt120_long')">
+      LONG (120일 Holding)
+    </button>
+    <button class="strategy-tab" id="tab-bt20_ens" onclick="selectStrategy('bt20_ens')">
+      Ensemble (20일)
+    </button>
+    <button class="strategy-tab" id="tab-bt120_ens" onclick="selectStrategy('bt120_ens')">
+      Ensemble (120일)
+    </button>
+  </div>
+
+  <div style="display:flex; align-items:center; gap:15px; background:rgba(255,255,255,0.15); padding:20px; border-radius:8px">
+    <span style="font-size:16px; font-weight:600">Phase:</span>
+    <select id="phaseSelect" class="form-select" style="width:200px" onchange="loadEquityCurve()">
+      <option value="">All</option>
+      <option value="dev">Dev</option>
+      <option value="holdout" selected>Holdout</option>
+    </select>
+  </div>
+</div>
+
+<!-- Metrics Cards -->
+<div class="row mb-4" id="metrics-row">
+  <div class="col-md-4 col-lg-2 mb-3">
+    <div class="metric-card metric-cagr">
+      <div class="metric-label">CAGR</div>
+      <div class="metric-value" id="m-cagr">--</div>
+      <div class="metric-sub">연평균 수익률</div>
+    </div>
+  </div>
+  <div class="col-md-4 col-lg-2 mb-3">
+    <div class="metric-card metric-sharpe">
+      <div class="metric-label">Sharpe Ratio</div>
+      <div class="metric-value" id="m-sharpe">--</div>
+      <div class="metric-sub">위험 대비 수익</div>
+    </div>
+  </div>
+  <div class="col-md-4 col-lg-2 mb-3">
+    <div class="metric-card metric-mdd">
+      <div class="metric-label">Max Drawdown</div>
+      <div class="metric-value" id="m-mdd">--</div>
+      <div class="metric-sub">최대 낙폭</div>
+    </div>
+  </div>
+  <div class="col-md-4 col-lg-2 mb-3">
+    <div class="metric-card metric-total">
+      <div class="metric-label">총 수익률</div>
+      <div class="metric-value" id="m-total">--</div>
+      <div class="metric-sub">누적 수익</div>
+    </div>
+  </div>
+  <div class="col-md-4 col-lg-2 mb-3">
+    <div class="metric-card metric-turnover">
+      <div class="metric-label">Hit Ratio</div>
+      <div class="metric-value" id="m-hit">--</div>
+      <div class="metric-sub">적중률</div>
+    </div>
+  </div>
+  <div class="col-md-4 col-lg-2 mb-3">
+    <div class="metric-card metric-alpha">
+      <div class="metric-label">IC</div>
+      <div class="metric-value" id="m-ic">--</div>
+      <div class="metric-sub">Information Coefficient</div>
+    </div>
+  </div>
+</div>
+
+<!-- Chart -->
+<div class="card">
+  <div class="card-body">
+    <h5 class="card-title mb-3">
+      <i class="bi bi-graph-up"></i> Equity Curve: 전략 vs 벤치마크
+    </h5>
+    <div id="chart-loading" class="loading-spinner">
+      <div class="spinner-border text-primary" role="status"></div>
+    </div>
+    <div class="chart-container" id="chart-wrapper" style="display:none">
+      <canvas id="equityChart"></canvas>
+    </div>
+  </div>
+</div>
+
+<!-- Metrics Table -->
+<div class="card">
+  <div class="card-header"><h5 class="mb-0"><i class="bi bi-table"></i> 상세 지표</h5></div>
+  <div class="card-body p-0">
+    <div class="table-responsive">
+      <table class="table table-sm table-hover mb-0">
+        <thead class="table-light">
+          <tr>
+            <th>Phase</th><th>Top-K</th><th>Holding</th><th>Cost(bps)</th>
+            <th>CAGR(net)</th><th>Sharpe(net)</th><th>MDD(net)</th>
+            <th>Hit Ratio</th><th>Turnover</th><th>IC</th><th>Calmar</th>
+          </tr>
+        </thead>
+        <tbody id="metrics-tbody"></tbody>
+      </table>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+let currentStrategy = 'bt20_short';
+let equityChart = null;
+
+const STRATEGY_COLORS = {
+  bt20_short: '#198754',
+  bt120_long: '#0d6efd',
+  bt20_ens: '#fd7e14',
+  bt120_ens: '#6f42c1',
+};
+
+function selectStrategy(strategy) {
+  currentStrategy = strategy;
+  document.querySelectorAll('.strategy-tab').forEach(el => {
+    el.classList.toggle('active', el.id === 'tab-' + strategy);
+  });
+  loadMetrics();
+  loadEquityCurve();
+}
+
+function fmtPct(v) { return v != null ? (v * 100).toFixed(2) + '%' : '--'; }
+function fmtNum(v, d) { return v != null ? v.toFixed(d || 2) : '--'; }
+
+async function loadMetrics() {
+  try {
+    const res = await fetch('/api/backtest/metrics?strategy=' + currentStrategy);
+    const data = await res.json();
+    const phase = document.getElementById('phaseSelect').value || 'holdout';
+
+    // 상세 테이블
+    const tbody = document.getElementById('metrics-tbody');
+    tbody.innerHTML = data.metrics.map(m =>
+      '<tr' + (m.phase === phase ? ' class="table-active"' : '') + '>' +
+      '<td>' + (m.phase || '') + '</td>' +
+      '<td>' + (m.top_k || '') + '</td>' +
+      '<td>' + (m.holding_days || '') + '</td>' +
+      '<td>' + fmtNum(m.cost_bps, 1) + '</td>' +
+      '<td>' + fmtPct(m.net_cagr) + '</td>' +
+      '<td>' + fmtNum(m.net_sharpe) + '</td>' +
+      '<td>' + fmtPct(m.net_mdd) + '</td>' +
+      '<td>' + fmtPct(m.net_hit_ratio) + '</td>' +
+      '<td>' + fmtPct(m.avg_turnover_oneway) + '</td>' +
+      '<td>' + fmtNum(m.ic, 4) + '</td>' +
+      '<td>' + fmtNum(m.net_calmar_ratio) + '</td>' +
+      '</tr>'
+    ).join('');
+
+    // 요약 카드 (선택된 phase)
+    const sel = data.metrics.find(m => m.phase === phase) || data.metrics[0];
+    if (sel) {
+      document.getElementById('m-cagr').textContent = fmtPct(sel.net_cagr);
+      document.getElementById('m-sharpe').textContent = fmtNum(sel.net_sharpe);
+      document.getElementById('m-mdd').textContent = fmtPct(sel.net_mdd);
+      document.getElementById('m-total').textContent = fmtPct(sel.net_total_return);
+      document.getElementById('m-hit').textContent = fmtPct(sel.net_hit_ratio);
+      document.getElementById('m-ic').textContent = fmtNum(sel.ic, 4);
+    }
+  } catch (e) {
+    console.error('Failed to load metrics:', e);
+  }
+}
+
+async function loadEquityCurve() {
+  document.getElementById('chart-loading').style.display = 'flex';
+  document.getElementById('chart-wrapper').style.display = 'none';
+
+  try {
+    const phase = document.getElementById('phaseSelect').value;
+    let url = '/api/backtest/equity-curve?strategy=' + currentStrategy;
+    if (phase) url += '&phase=' + phase;
+
+    const res = await fetch(url);
+    const data = await res.json();
+
+    updateChart(data);
+
+    document.getElementById('chart-loading').style.display = 'none';
+    document.getElementById('chart-wrapper').style.display = 'block';
+  } catch (e) {
+    console.error('Failed to load equity curve:', e);
+    document.getElementById('chart-loading').innerHTML =
+      '<div class="text-danger">차트 로드 실패</div>';
+  }
+}
+
+function updateChart(data) {
+  if (equityChart) equityChart.destroy();
+
+  // 샘플링 (데이터 많을 때)
+  const sample = data.data.length > 500 ? Math.ceil(data.data.length / 500) : 1;
+  const strategyPts = data.data.filter((_, i) => i % sample === 0);
+  const benchPts = data.benchmark.filter((_, i) => i % sample === 0);
+
+  const ctx = document.getElementById('equityChart').getContext('2d');
+  equityChart = new Chart(ctx, {
+    type: 'line',
+    data: {
+      labels: strategyPts.map(p => p.date),
+      datasets: [
+        {
+          label: currentStrategy.toUpperCase(),
+          data: strategyPts.map(p => p.equity),
+          borderColor: STRATEGY_COLORS[currentStrategy] || '#0d6efd',
+          borderWidth: 2.5,
+          pointRadius: 0,
+          fill: false,
+          tension: 0.1,
+        },
+        {
+          label: 'Benchmark (KODEX200)',
+          data: benchPts.map(p => p.equity),
+          borderColor: '#6c757d',
+          borderWidth: 2,
+          borderDash: [5, 5],
+          pointRadius: 0,
+          fill: false,
+          tension: 0.1,
+        }
+      ]
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      interaction: { mode: 'index', intersect: false },
+      plugins: {
+        legend: { position: 'top' },
+        tooltip: {
+          callbacks: {
+            label: ctx => ctx.dataset.label + ': ' + ctx.parsed.y.toFixed(4)
+          }
+        }
+      },
+      scales: {
+        x: { ticks: { maxTicksLimit: 10 } },
+        y: {
+          title: { display: true, text: 'Equity (시작=1.0)' },
+          ticks: { callback: v => v.toFixed(2) }
+        }
+      }
+    }
+  });
+}
+
+// Init
+loadMetrics();
+loadEquityCurve();
+</script>
+{% endblock %}

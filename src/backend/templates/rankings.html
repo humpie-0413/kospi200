@@ -1,0 +1,547 @@
+{% extends "base.html" %}
+{% block title %}Rankings - KOSPI200{% endblock %}
+
+{% block head %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+{% endblock %}
+
+{% block content %}
+<div class="rankings-page">
+  <section class="page-header hero-panel">
+    <div class="page-header-grid">
+      <div class="page-header-copy">
+        <div class="eyebrow-chip">
+          <i class="bi bi-stars"></i>
+          AI Ranking Dashboard
+        </div>
+        <h1 class="page-title">KOSPI200 AI 랭킹</h1>
+        <p class="page-subtitle">
+          모멘텀, 리스크, 수익성, 가치, 유동성, 뉴스, ESG 신호를 한 화면에서 읽기 쉽게 정리한
+          가독성 중심 랭킹 화면입니다.
+        </p>
+        <div class="page-bullet-chips">
+          <span class="page-chip"><i class="bi bi-lightning-charge"></i> 단기·장기 전환</span>
+          <span class="page-chip"><i class="bi bi-calendar2-check"></i> 날짜별 조회</span>
+          <span class="page-chip"><i class="bi bi-pie-chart"></i> 상세 분석 모달</span>
+        </div>
+      </div>
+
+      <div class="page-header-controls">
+        <div class="control-surface">
+          <div class="control-surface-label">조회 설정</div>
+          <label class="field-label" for="dateSelect">기준일 선택</label>
+          <select id="dateSelect" class="form-select date-select" onchange="loadRankings()">
+            <option value="">Loading...</option>
+          </select>
+          <p class="control-helper mb-0">기준일을 바꾸면 동일한 관점에서 전체 랭킹이 다시 계산됩니다.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section class="section-panel horizon-panel">
+    <div class="section-panel-head">
+      <div>
+        <div class="section-kicker">Prediction Horizon</div>
+        <h2 class="section-title">예측 기간 선택</h2>
+      </div>
+      <p class="section-helper">20일/120일 관점을 전환해 같은 날짜에서도 신호 강도를 비교할 수 있습니다.</p>
+    </div>
+
+    <ul class="nav nav-pills mb-0" id="horizonTabs">
+      <li class="nav-item">
+        <button class="nav-link" data-horizon="short_term" onclick="switchHorizon('short_term')">
+          <span class="tab-icon"><i class="bi bi-lightning"></i></span>
+          <span class="tab-copy">
+            <span class="tab-title">단기 (20일)</span>
+            <span class="tab-caption">빠른 반응 신호</span>
+          </span>
+        </button>
+      </li>
+      <li class="nav-item">
+        <button class="nav-link active" data-horizon="long_term" onclick="switchHorizon('long_term')">
+          <span class="tab-icon"><i class="bi bi-calendar-range"></i></span>
+          <span class="tab-copy">
+            <span class="tab-title">장기 (120일)</span>
+            <span class="tab-caption">중기 흐름 중심</span>
+          </span>
+        </button>
+      </li>
+    </ul>
+  </section>
+
+  <section class="date-info" id="horizonInfo">
+    <div class="date-info-primary">
+      <span class="info-chip"><i class="bi bi-clock-history"></i> Snapshot</span>
+      <div class="current-date" id="rankingDate">--</div>
+      <div class="date-horizon-label" id="horizonLabel">장기 (120일) 관점 랭킹</div>
+    </div>
+
+    <div class="date-info-guide">
+      <div class="guide-title">해석 기준</div>
+      <div class="guide-line"><span class="guide-dot positive"></span> 스코어 높을수록 상승 예측</div>
+      <div class="guide-line"><span class="guide-dot negative"></span> 스코어 낮을수록 하락 예측</div>
+    </div>
+  </section>
+
+  <div class="row g-0 mb-4" id="perfCards" style="display:none">
+    <div class="col-12">
+      <div class="card performance-card">
+        <div class="card-body">
+          <div class="performance-header">
+            <div class="performance-title-wrap">
+              <span class="section-kicker">Holdout Performance</span>
+              <div class="performance-title"><i class="bi bi-graph-up-arrow"></i> 검증기간 성과 (2023~2024 holdout)</div>
+            </div>
+            <span class="badge performance-badge" id="perfLabel">--</span>
+          </div>
+
+          <div class="performance-metrics">
+            <div class="metric-card metric-cagr">
+              <span class="metric-label">상위 매수 CAGR</span>
+              <strong class="metric-value" id="perfBuyCagr">--</strong>
+              <span class="metric-sub">연 환산 수익률</span>
+            </div>
+            <div class="metric-card metric-sharpe">
+              <span class="metric-label">Sharpe</span>
+              <strong class="metric-value" id="perfBuySharpe">--</strong>
+              <span class="metric-sub">위험 대비 수익성</span>
+            </div>
+            <div class="metric-card metric-mdd">
+              <span class="metric-label">MDD</span>
+              <strong class="metric-value" id="perfBuyMdd">--</strong>
+              <span class="metric-sub">최대 낙폭</span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div id="loading" class="loading-spinner">
+    <div class="loading-panel">
+      <div class="spinner-border text-primary" role="status">
+        <span class="visually-hidden">Loading...</span>
+      </div>
+      <div class="loading-copy">
+        <strong>랭킹을 불러오는 중</strong>
+        <span>선택한 기준일과 예측 기간에 맞는 종목 데이터를 정리하고 있습니다.</span>
+      </div>
+    </div>
+  </div>
+
+  <div id="rankings-content" style="display:none">
+    <section class="card rankings-table-card">
+      <div class="card-header rankings-card-header">
+        <div>
+          <div class="section-kicker">Universe Ranking</div>
+          <h5 class="mb-0"><i class="bi bi-list-ol"></i> 전체 랭킹 <small class="text-muted" id="totalCount"></small></h5>
+        </div>
+        <div class="rankings-card-meta">
+          <span class="meta-pill">Top to Bottom</span>
+          <span class="text-muted small" id="pageInfo"></span>
+        </div>
+      </div>
+
+      <div class="card-body p-0">
+        <div class="table-responsive rankings-table-wrap">
+          <table class="table table-hover mb-0 rankings-table">
+            <thead class="table-light">
+              <tr>
+                <th style="width:64px">순위</th>
+                <th style="width:100px">코드</th>
+                <th style="min-width:180px">종목명</th>
+                <th style="width:120px">스코어</th>
+                <th style="min-width:300px">핵심 요인</th>
+              </tr>
+            </thead>
+            <tbody id="ranking-tbody"></tbody>
+          </table>
+        </div>
+      </div>
+
+      <div class="card-footer rankings-pagination">
+        <button class="btn btn-sm btn-outline-secondary" id="btnFirst" onclick="goPage(1)"><i class="bi bi-chevron-double-left"></i></button>
+        <button class="btn btn-sm btn-outline-secondary" id="btnPrev" onclick="goPage(currentPage-1)"><i class="bi bi-chevron-left"></i></button>
+        <div id="pageButtons" class="d-flex gap-1"></div>
+        <button class="btn btn-sm btn-outline-secondary" id="btnNext" onclick="goPage(currentPage+1)"><i class="bi bi-chevron-right"></i></button>
+        <button class="btn btn-sm btn-outline-secondary" id="btnLast" onclick="goPage(totalPages)"><i class="bi bi-chevron-double-right"></i></button>
+      </div>
+    </section>
+  </div>
+
+  <div class="modal fade" id="tickerModal" tabindex="-1">
+    <div class="modal-dialog modal-xl modal-dialog-centered">
+      <div class="modal-content ticker-modal-content">
+        <div class="modal-header">
+          <div>
+            <div class="section-kicker">Ticker Detail</div>
+            <h5 class="modal-title mb-0" id="modalTitle">종목 상세</h5>
+          </div>
+          <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="닫기"></button>
+        </div>
+
+        <div class="modal-body">
+          <div class="row g-3">
+            <div class="col-lg-6">
+              <div class="chart-panel">
+                <div class="chart-panel-head">
+                  <h6 class="mb-0">카테고리별 종합 점수</h6>
+                  <span class="chart-panel-meta">0 ~ 100</span>
+                </div>
+                <div class="chart-canvas-wrap">
+                  <canvas id="radarChart" height="280"></canvas>
+                </div>
+              </div>
+            </div>
+
+            <div class="col-lg-6">
+              <div class="chart-panel">
+                <div class="chart-panel-head">
+                  <h6 class="mb-0">최근 20일 랭킹 추이</h6>
+                  <span class="chart-panel-meta">Daily Score</span>
+                </div>
+                <div class="chart-canvas-wrap">
+                  <canvas id="timelineChart" height="280"></canvas>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <style>
+  .reason-tag {
+    display: inline-flex;
+    align-items: center;
+    padding: 0.45rem 0.72rem;
+    margin: 0.22rem 0.28rem 0 0;
+    border-radius: 999px;
+    font-size: 0.83rem;
+    line-height: 1;
+    font-weight: 700;
+    letter-spacing: -0.01em;
+    border: 1px solid transparent;
+    white-space: nowrap;
+  }
+
+  .reason-tag.momentum { background: rgba(49, 130, 246, 0.12); color: #1b64da; border-color: rgba(49, 130, 246, 0.18); }
+  .reason-tag.risk { background: rgba(240, 68, 82, 0.12); color: #d22030; border-color: rgba(240, 68, 82, 0.18); }
+  .reason-tag.profitability { background: rgba(3, 178, 108, 0.12); color: #029359; border-color: rgba(3, 178, 108, 0.18); }
+  .reason-tag.value { background: rgba(254, 152, 0, 0.12); color: #ed6700; border-color: rgba(254, 152, 0, 0.18); }
+  .reason-tag.liquidity { background: rgba(24, 165, 165, 0.12); color: #0c8585; border-color: rgba(24, 165, 165, 0.18); }
+  .reason-tag.sentiment { background: rgba(124, 58, 237, 0.12); color: #6d28d9; border-color: rgba(124, 58, 237, 0.18); }
+  .reason-tag.esg { background: rgba(51, 61, 75, 0.12); color: #333d4b; border-color: rgba(51, 61, 75, 0.16); }
+  .reason-tag.other { background: rgba(2, 32, 71, 0.06); color: var(--text-secondary); border-color: rgba(2, 32, 71, 0.08); }
+
+  .ticker-link {
+    cursor: pointer;
+    color: var(--toss-blue);
+    text-decoration: none;
+    font-weight: 700;
+    border-bottom: 1px solid rgba(49, 130, 246, 0.35);
+    transition: color 0.2s ease, border-color 0.2s ease;
+  }
+
+  .ticker-link:hover {
+    color: var(--toss-blue-700);
+    border-color: rgba(27, 100, 218, 0.6);
+  }
+
+  .score-positive { color: var(--toss-green); }
+  .score-negative { color: var(--toss-red); }
+  .score-neutral { color: var(--text-tertiary); }
+
+  #themeToggle:checked ~ .app-shell .reason-tag.momentum { background: rgba(49, 130, 246, 0.22); color: #90c2ff; border-color: rgba(144, 194, 255, 0.22); }
+  #themeToggle:checked ~ .app-shell .reason-tag.risk { background: rgba(240, 68, 82, 0.2); color: #feafb4; border-color: rgba(254, 175, 180, 0.22); }
+  #themeToggle:checked ~ .app-shell .reason-tag.profitability { background: rgba(3, 178, 108, 0.18); color: #76e4b8; border-color: rgba(118, 228, 184, 0.2); }
+  #themeToggle:checked ~ .app-shell .reason-tag.value { background: rgba(254, 152, 0, 0.18); color: #ffcd80; border-color: rgba(255, 205, 128, 0.22); }
+  #themeToggle:checked ~ .app-shell .reason-tag.liquidity { background: rgba(24, 165, 165, 0.18); color: #89d8d8; border-color: rgba(137, 216, 216, 0.2); }
+  #themeToggle:checked ~ .app-shell .reason-tag.sentiment { background: rgba(124, 58, 237, 0.2); color: #c4b5fd; border-color: rgba(196, 181, 253, 0.2); }
+  #themeToggle:checked ~ .app-shell .reason-tag.esg { background: rgba(176, 184, 193, 0.16); color: #e5e8eb; border-color: rgba(229, 232, 235, 0.16); }
+  #themeToggle:checked ~ .app-shell .reason-tag.other { background: rgba(229, 232, 235, 0.08); color: #d1d6db; border-color: rgba(229, 232, 235, 0.1); }
+  </style>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+let currentHorizon = 'long_term';
+let currentPage = 1;
+let totalPages = 1;
+let cachedItems = [];
+let radarChartInstance = null;
+let timelineChartInstance = null;
+
+const PAGE_SIZE = 20;
+
+const HORIZON_META = {
+  short_term: {days: 20, label: '단기 (20일) 관점 랭킹'},
+  long_term:  {days: 120, label: '장기 (120일) 관점 랭킹'},
+};
+
+const FEATURE_INFO = {
+  momentum_3m:      {ko:'3개월 모멘텀', cat:'momentum', up:'상승 추세 지속', dn:'하락 추세'},
+  momentum_6m:      {ko:'6개월 모멘텀', cat:'momentum', up:'중장기 상승세', dn:'중장기 약세'},
+  momentum_rank:    {ko:'모멘텀 순위',  cat:'momentum', up:'상대 강세', dn:'상대 약세'},
+  price_momentum:   {ko:'가격 모멘텀',  cat:'momentum', up:'가격 상승력', dn:'가격 하락 압력'},
+  price_momentum_20d:{ko:'20일 모멘텀', cat:'momentum', up:'단기 상승세', dn:'단기 약세'},
+  price_momentum_60d:{ko:'60일 모멘텀', cat:'momentum', up:'중기 상승세', dn:'중기 약세'},
+  momentum_reversal:{ko:'반전 시그널',  cat:'momentum', up:'반등 기대', dn:'추가 하락 우려'},
+  ret_daily:        {ko:'일간 수익률',  cat:'momentum', up:'당일 강세', dn:'당일 약세'},
+  volatility:       {ko:'변동성',       cat:'risk', up:'안정적', dn:'변동성 과다'},
+  volatility_20d:   {ko:'20일 변동성', cat:'risk', up:'단기 안정', dn:'단기 불안정'},
+  volatility_60d:   {ko:'60일 변동성', cat:'risk', up:'중기 안정', dn:'중기 불안정'},
+  max_drawdown_60d: {ko:'최대 낙폭',   cat:'risk', up:'낙폭 제한적', dn:'급락 이력'},
+  downside_volatility_60d:{ko:'하방 변동성', cat:'risk', up:'하방 안정', dn:'하방 리스크'},
+  net_income:       {ko:'순이익',       cat:'profitability', up:'수익성 우수', dn:'수익성 저조'},
+  roe:              {ko:'ROE',          cat:'profitability', up:'자본효율 우수', dn:'자본효율 저조'},
+  equity:           {ko:'자기자본',     cat:'value', up:'재무건전', dn:'자본 부족'},
+  total_liabilities:{ko:'총부채',       cat:'value', up:'부채 적정', dn:'과다 부채'},
+  debt_ratio:       {ko:'부채비율',     cat:'value', up:'부채비율 양호', dn:'부채비율 과다'},
+  turnover:         {ko:'거래대금',     cat:'liquidity', up:'매수세 유입', dn:'거래 위축'},
+  volume_ratio:     {ko:'거래량 비율', cat:'liquidity', up:'거래량 급증', dn:'거래량 감소'},
+  news_sentiment:   {ko:'뉴스 심리',   cat:'sentiment', up:'긍정 보도', dn:'부정 보도'},
+  news_sentiment_ewm5: {ko:'단기 뉴스', cat:'sentiment', up:'최근 긍정적', dn:'최근 부정적'},
+  news_sentiment_ewm20:{ko:'장기 뉴스', cat:'sentiment', up:'뉴스 호조', dn:'뉴스 악화'},
+  news_sentiment_surprise:{ko:'뉴스 서프라이즈', cat:'sentiment', up:'예상 밖 호재', dn:'예상 밖 악재'},
+  news_volume:      {ko:'뉴스 볼륨',   cat:'sentiment', up:'관심도 급등', dn:'관심도 저조'},
+  esg_score:        {ko:'ESG 종합',    cat:'esg', up:'ESG 우수', dn:'ESG 취약'},
+  environmental_score:{ko:'환경 점수', cat:'esg', up:'환경경영 우수', dn:'환경 리스크'},
+  social_score:     {ko:'사회 점수',   cat:'esg', up:'사회적 책임 양호', dn:'사회적 이슈'},
+  governance_score: {ko:'지배구조',    cat:'esg', up:'지배구조 투명', dn:'지배구조 리스크'},
+};
+
+function getFeatureInfo(name) {
+  return FEATURE_INFO[name] || {ko:name, cat:'other', up:name+' 양호', dn:name+' 부진'};
+}
+
+function rankBadge(rank) {
+  const r = Math.round(rank);
+  const cls = r <= 3 ? 'rank-' + r : 'rank-other';
+  return '<span class="rank-badge ' + cls + '">' + r + '</span>';
+}
+
+function reasonTag(featName, contrib, percentile) {
+  if (!featName) return '';
+  const info = getFeatureInfo(featName);
+  const isPositive = contrib > 0;
+  const pctText = percentile != null ? ' (상위 ' + (isPositive ? Math.round(100-percentile) : Math.round(percentile)) + '%)' : '';
+  return '<span class="reason-tag ' + info.cat + '" title="' + featName + ': ' + (contrib*100).toFixed(1) + '%">' +
+    info.ko + pctText + '</span>';
+}
+
+function scoreClass(score) {
+  if (score > 0.01) return 'score-positive';
+  if (score < -0.01) return 'score-negative';
+  return 'score-neutral';
+}
+
+function renderTable(items) {
+  const tbody = document.getElementById('ranking-tbody');
+  if (!items || items.length === 0) {
+    tbody.innerHTML = '<tr><td colspan="5" class="text-center text-muted py-4">데이터 없음</td></tr>';
+    return;
+  }
+  tbody.innerHTML = items.map(item => {
+    const tags = [
+      reasonTag(item.top_feature_1, item.contrib_1, item.percentile_1),
+      reasonTag(item.top_feature_2, item.contrib_2, item.percentile_2),
+      reasonTag(item.top_feature_3, item.contrib_3, item.percentile_3),
+    ].filter(Boolean).join(' ');
+    const sc = item.score_total ? item.score_total.toFixed(3) : '--';
+    const scCls = item.score_total ? scoreClass(item.score_total) : '';
+
+    return '<tr>' +
+      '<td>' + rankBadge(item.rank_total) + '</td>' +
+      '<td><span class="ticker-link" onclick="showTickerDetail(\'' + item.ticker + '\')">' + item.ticker + '</span></td>' +
+      '<td>' + (item.name || item.ticker) + '</td>' +
+      '<td class="score-cell ' + scCls + '">' + sc + '</td>' +
+      '<td><div>' + tags + '</div></td>' +
+      '</tr>';
+  }).join('');
+}
+
+function renderPagination() {
+  document.getElementById('btnFirst').disabled = currentPage <= 1;
+  document.getElementById('btnPrev').disabled = currentPage <= 1;
+  document.getElementById('btnNext').disabled = currentPage >= totalPages;
+  document.getElementById('btnLast').disabled = currentPage >= totalPages;
+
+  const container = document.getElementById('pageButtons');
+  let start = Math.max(1, currentPage - 2);
+  let end = Math.min(totalPages, start + 4);
+  if (end - start < 4) start = Math.max(1, end - 4);
+
+  let html = '';
+  for (let p = start; p <= end; p++) {
+    const active = p === currentPage ? 'btn-primary' : 'btn-outline-secondary';
+    html += '<button class="btn btn-sm ' + active + '" onclick="goPage(' + p + ')">' + p + '</button>';
+  }
+  container.innerHTML = html;
+}
+
+function goPage(page) {
+  if (page < 1 || page > totalPages) return;
+  currentPage = page;
+  loadRankings();
+}
+
+async function showTickerDetail(ticker) {
+  const name = cachedItems.find(i => i.ticker === ticker);
+  document.getElementById('modalTitle').textContent = ticker + ' ' + (name ? name.name : '') + ' 상세 분석';
+
+  const modal = new bootstrap.Modal(document.getElementById('tickerModal'));
+  modal.show();
+
+  const [rankRes, tlRes] = await Promise.all([
+    fetch('/api/rankings?target_date=' + document.getElementById('dateSelect').value + '&horizon=' + currentHorizon + '&page=1&page_size=300').then(r=>r.json()),
+    fetch('/api/rankings/timeline/' + ticker + '?horizon=' + currentHorizon + '&days=20').then(r=>r.json()),
+  ]);
+
+  const tickerData = (rankRes.items || []).find(i => i.ticker === ticker);
+  drawRadar(tickerData);
+  drawTimeline(tlRes);
+}
+
+function drawRadar(item) {
+  const ctx = document.getElementById('radarChart').getContext('2d');
+  if (radarChartInstance) radarChartInstance.destroy();
+
+  const cats = item && item.categories ? item.categories : {};
+  const labels = ['모멘텀','리스크','수익성','가치','유동성','뉴스','ESG'];
+  const keys = ['momentum','risk','profitability','value','liquidity','sentiment','esg'];
+  const data = keys.map(k => cats[k] > 0 ? cats[k] : null);
+  const hasData = data.map(v => v !== null);
+  const displayData = data.map(v => v !== null ? v : 50);
+
+  radarChartInstance = new Chart(ctx, {
+    type: 'radar',
+    data: {
+      labels: labels.map((l,i) => hasData[i] ? l : l + ' (N/A)'),
+      datasets: [{
+        label: item ? item.ticker : '',
+        data: displayData,
+        backgroundColor: 'rgba(54, 162, 235, 0.2)',
+        borderColor: 'rgba(54, 162, 235, 1)',
+        pointBackgroundColor: keys.map((_,i) => hasData[i] ? 'rgba(54, 162, 235, 1)' : '#ccc'),
+        pointRadius: keys.map((_,i) => hasData[i] ? 4 : 3),
+        borderWidth: 2,
+      }]
+    },
+    options: {
+      responsive: true,
+      scales: { r: { beginAtZero: true, max: 100, ticks: { stepSize: 25, display: false } } },
+      plugins: { legend: { display: false } },
+    }
+  });
+}
+
+function drawTimeline(tlData) {
+  const ctx = document.getElementById('timelineChart').getContext('2d');
+  if (timelineChartInstance) timelineChartInstance.destroy();
+
+  const items = tlData.timeline || [];
+  const labels = items.map(i => i.date.slice(5));
+  const scores = items.map(i => i.score);
+
+  timelineChartInstance = new Chart(ctx, {
+    type: 'line',
+    data: {
+      labels: labels,
+      datasets: [{
+        label: 'Score',
+        data: scores,
+        borderColor: '#0d6efd',
+        backgroundColor: 'rgba(13,110,253,0.1)',
+        fill: true,
+        tension: 0.3,
+        pointRadius: 3,
+      }]
+    },
+    options: {
+      responsive: true,
+      plugins: { legend: { display: false } },
+      scales: {
+        x: { ticks: { maxRotation: 45, font: { size: 10 } } },
+        y: { title: { display: true, text: 'Score' } }
+      },
+    }
+  });
+}
+
+function fmtPct(v) { return v == null ? '--' : (v * 100).toFixed(1) + '%'; }
+function fmtNum(v, d) { return v == null ? '--' : v.toFixed(d || 2); }
+
+function switchHorizon(horizon) {
+  currentHorizon = horizon;
+  currentPage = 1;
+  document.querySelectorAll('#horizonTabs .nav-link').forEach(btn => {
+    btn.classList.toggle('active', btn.dataset.horizon === horizon);
+  });
+  document.getElementById('horizonLabel').textContent = HORIZON_META[horizon].label;
+  loadRankings();
+  loadPerformance(horizon);
+}
+
+async function loadPerformance(horizon) {
+  try {
+    const res = await fetch('/api/rankings/performance?horizon=' + horizon);
+    const data = await res.json();
+    const perf = data.performance || {};
+
+    document.getElementById('perfLabel').textContent = data.label;
+    if (perf.buy) {
+      document.getElementById('perfBuyCagr').textContent = fmtPct(perf.buy.net_cagr);
+      document.getElementById('perfBuySharpe').textContent = fmtNum(perf.buy.net_sharpe);
+      document.getElementById('perfBuyMdd').textContent = fmtPct(perf.buy.net_mdd);
+    }
+    document.getElementById('perfCards').style.display = 'flex';
+  } catch (e) { console.error('Failed to load performance:', e); }
+}
+
+async function loadDates() {
+  try {
+    const res = await fetch('/api/rankings/dates?limit=60');
+    const dates = await res.json();
+    const sel = document.getElementById('dateSelect');
+    sel.innerHTML = dates.map((d, i) =>
+      '<option value="' + d + '"' + (i === 0 ? ' selected' : '') + '>' + d + '</option>'
+    ).join('');
+    if (dates.length > 0) loadRankings();
+  } catch (e) { console.error('Failed to load dates:', e); }
+}
+
+async function loadRankings() {
+  document.getElementById('loading').style.display = 'flex';
+  document.getElementById('rankings-content').style.display = 'none';
+  try {
+    const date = document.getElementById('dateSelect').value;
+    const url = '/api/rankings?target_date=' + date + '&horizon=' + currentHorizon +
+      '&page=' + currentPage + '&page_size=' + PAGE_SIZE;
+    const res = await fetch(url);
+    const data = await res.json();
+
+    document.getElementById('rankingDate').textContent = data.date || '--';
+    document.getElementById('totalCount').textContent = '(' + (data.total || 0) + '종목)';
+    document.getElementById('pageInfo').textContent = data.page + ' / ' + Math.ceil((data.total||1) / PAGE_SIZE) + ' 페이지';
+
+    totalPages = Math.ceil((data.total || 1) / PAGE_SIZE);
+    cachedItems = data.items || [];
+    renderTable(cachedItems);
+    renderPagination();
+
+    document.getElementById('loading').style.display = 'none';
+    document.getElementById('rankings-content').style.display = 'block';
+  } catch (e) {
+    console.error('Failed to load rankings:', e);
+    document.getElementById('loading').innerHTML = '<div class="text-danger">데이터 로드 실패</div>';
+  }
+}
+
+loadDates();
+loadPerformance(currentHorizon);
+</script>
+{% endblock %}
