@@ -49,6 +49,7 @@ kospi200/
 - DART API 키: `.env`에 `DART_API_KEY` 설정
 - 스케줄러: .env에서 활성 (SCHEDULER_ENABLED=true, 06:00 KST)
 - Naver API: .env에 NAVER_CLIENT_ID/SECRET 설정
+- FMP API: .env에 FMP_API_KEY 설정 (무료 250회/일, 외부 지수 수집용)
 
 ## 시스템 아키텍처
 
@@ -130,17 +131,25 @@ Step 6:  MySQL 리로드
 - Phase D (1~2개월): #2 커스텀 랭킹 + 구독 시스템
 
 ### 핵심 인사이트
-- Git 미사용 → 코드 손실 리스크 가장 시급
+- ~~Git 미사용~~ → GitHub 배포 완료 (humpie-0413/kospi200)
 - MVP 완성도: 6.7/10 (핵심 기능 작동, 보안/테스트/CI 미흡)
 - 외부 지수는 랭킹 직접 효과보다 시장 국면 모듈로 활용이 효과적
 - XGBoost 과적합 징후 (IC 0.733pt 하락) → 정규화 강화 필요
 - 커스텀 랭킹은 모델 정확도 검증 후에 의미 있음
 
+## 참고 자료 (Phase C~D에서 활용)
+- `C:\0_project\claude-trading-skills/` — 33개 트레이딩 스킬 패키지 (git clone 완료)
+  - `skills/macro-regime-detector/` → Phase C1 시장 국면 판별 로직 참조
+  - `skills/backtest-expert/references/` → Phase C2 walk-forward 검증 방법론
+  - `skills/economic-calendar-fetcher/` → Phase C1 FMP API 호출 패턴
+  - `skills/us-market-bubble-detector/` → 버블 스코어링 참조
+  - `skills/canslim-screener/` → Phase D1 다중 팩터 스코어링 참조
+
 ## 알려진 이슈
 - 뉴스/ESG: 일별 자동 갱신 중이나 과거 갭(~2024-12-31) 존재
 - ticker zfill(6) 매핑 필요 (DB는 leading zero 없음)
 - dataset_daily 파일 잔존 시 Track A가 최신 패널 무시 (반드시 삭제)
-- 보안: .env에 API키/비밀번호 포함 → GitHub 배포 전 정리 필수
+- ~~보안: .env에 API키/비밀번호 포함~~ → 시크릿 제거 완료, .env.example 제공
 - 테스트 코드 거의 없음, CI/CD 미구축
 
 ## 미완료 작업 (다음 세션 후보)
@@ -149,10 +158,13 @@ Step 6:  MySQL 리로드
 3. ~~일별 전체 데이터 갱신 파이프라인~~ → 완료
 4. ~~6개 아이디어 분석 리포트~~ → 완료 (`docs/idea_analysis_report.md`)
 5. ~~관리자 대시보드 강화~~ → 완료 (`checkpoints/STAGE_ADMIN_DASHBOARD.md`)
-6. **GitHub 배포** (.gitignore, .env.example, README.md, 키 정리)
+6. ~~GitHub 배포~~ → 완료 (https://github.com/humpie-0413/kospi200)
 7. **기술적 지표 추가** (RSI, MACD, Bollinger Band)
 8. **예측 최적화** (XGB 정규화, 앙상블 가중치 조정)
 9. **backtest 페이지 디자인**: rankings와 동일 Toss 스타일 적용
+10. **외부 지수 통합** (FMP API: VIX/S&P500/WTI/금리 → 시장 국면 모듈)
+11. **커스텀 랭킹 + 구독** (z-score 매트릭스 + 사용자 피처 선택 + 결제)
+- 전체 로드맵 + 세션별 프롬프트: `stages/ROADMAP_PROMPTS.md` 참조
 
 ## 토큰 절약 규칙
 - 인사/면책/부연 금지. 결과만 출력.
