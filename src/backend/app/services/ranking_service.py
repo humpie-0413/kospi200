@@ -86,6 +86,7 @@ def _to_dict(row, rank):
     for cat in ["momentum", "risk", "profitability", "value", "liquidity", "sentiment", "esg"]:
         v = getattr(row, f"cat_{cat}", None)
         if v is not None:
+            d[f"cat_{cat}"] = round(v, 1)
             cats[cat] = round(v, 1)
     if cats:
         d["categories"] = cats
