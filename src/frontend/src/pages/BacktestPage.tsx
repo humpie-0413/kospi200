@@ -1,7 +1,8 @@
 import { useState, useEffect } from 'react'
-import { ChevronDown, ChevronUp, TrendingUp, TrendingDown, Target } from 'lucide-react'
+import { ChevronDown, ChevronUp, TrendingUp, TrendingDown, Target, Lightbulb, Info } from 'lucide-react'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs'
+import { Tooltip, TooltipTrigger, TooltipContent } from '@/components/ui/tooltip'
 import { Button } from '@/components/ui/button'
 import { cn } from '@/lib/utils'
 import { api } from '@/lib/api'
@@ -37,10 +38,15 @@ export function BacktestPage() {
 
   return (
     <div className="space-y-6">
+      {/* P0-7: 제목/설명 개선 */}
       <div>
-        <h1 className="text-2xl font-bold">백테스트 성과</h1>
-        <p className="mt-1 text-sm text-muted-foreground">
-          AI가 추천한 종목으로 투자했다면 얼마나 벌었을까?
+        <h1 className="text-2xl font-bold">과거 성과 검증</h1>
+        <p className="mt-1 text-sm font-medium text-muted-foreground">
+          AI가 추천한 종목으로 투자했다면 어땠을까요?
+        </p>
+        <p className="mt-2 text-xs leading-relaxed text-muted-foreground">
+          과거 10년간 AI 추천을 따랐을 때의 가상 투자 성과입니다.
+          실제 투자와 다를 수 있으며, 과거 성과가 미래를 보장하지 않습니다.
         </p>
       </div>
 
@@ -52,23 +58,35 @@ export function BacktestPage() {
         onSelect={setSelected}
       />
 
-      {/* Phase 탭 */}
-      <Tabs value={phase} onValueChange={setPhase}>
-        <TabsList>
-          <TabsTrigger value="holdout">검증 기간</TabsTrigger>
-          <TabsTrigger value="dev">학습 기간</TabsTrigger>
-        </TabsList>
-      </Tabs>
+      {/* P0-9: Phase 탭 리네이밍 */}
+      <div className="flex items-center gap-2">
+        <Tabs value={phase} onValueChange={setPhase}>
+          <TabsList>
+            <TabsTrigger value="holdout">실전 테스트</TabsTrigger>
+            <TabsTrigger value="dev">연습 기간</TabsTrigger>
+          </TabsList>
+        </Tabs>
+        <Tooltip>
+          <TooltipTrigger>
+            <Info className="h-4 w-4 cursor-help text-muted-foreground" />
+          </TooltipTrigger>
+          <TooltipContent side="bottom" className="max-w-xs">
+            <p className="font-semibold">실전 테스트가 더 신뢰도 높습니다</p>
+            <p className="mt-1">AI가 한 번도 보지 못한 데이터로 검증한 성과입니다.</p>
+            <p className="mt-1">연습 기간은 AI가 학습에 사용한 데이터입니다.</p>
+          </TooltipContent>
+        </Tooltip>
+      </div>
 
-      {/* 핵심 지표 3개 — 초보자용 대형 카드 */}
+      {/* 핵심 지표 3개 */}
       {current && (
         <div className="grid gap-4 sm:grid-cols-3">
-          {/* 누적 수익률 */}
+          {/* 연평균 수익률 (CAGR) */}
           <Card className="relative overflow-hidden">
             <CardContent className="pt-5 pb-4">
               <div className="flex items-center gap-2 mb-2">
                 <TrendingUp className="h-5 w-5 text-muted-foreground" />
-                <span className="text-sm font-medium text-muted-foreground">누적 수익률</span>
+                <span className="text-sm font-medium text-muted-foreground">연평균 수익률(CAGR)</span>
               </div>
               <p className={cn(
                 'text-3xl font-bold tabular-nums',
@@ -200,8 +218,8 @@ export function BacktestPage() {
                   <tr className="border-b text-left text-muted-foreground">
                     <th className="py-2 pr-4 font-medium">지표</th>
                     <th className="py-2 pr-4 font-medium">설명</th>
-                    {holdout && <th className="py-2 pr-4 font-medium">검증</th>}
-                    {dev && <th className="py-2 font-medium">학습</th>}
+                    {holdout && <th className="py-2 pr-4 font-medium">실전 테스트</th>}
+                    {dev && <th className="py-2 font-medium">연습 기간</th>}
                   </tr>
                 </thead>
                 <tbody>
@@ -237,6 +255,24 @@ export function BacktestPage() {
           )}
         </Card>
       )}
+
+      {/* P0-10: 행동 가이드 카드 */}
+      <Card className="border-primary/20 bg-primary/5">
+        <CardContent className="pt-5 pb-4">
+          <div className="mb-3 flex items-center gap-2">
+            <Lightbulb className="h-5 w-5 text-primary" />
+            <h3 className="font-semibold">이 전략을 활용하는 방법</h3>
+          </div>
+          <ol className="list-inside list-decimal space-y-1.5 text-sm text-muted-foreground">
+            <li>랭킹 페이지에서 오늘의 <strong className="text-foreground">상위 10개 종목</strong>을 확인하세요</li>
+            <li>장기 전략이라면 약 <strong className="text-foreground">6개월간 보유</strong>하세요</li>
+            <li>리밸런싱일(120일 후)에 <strong className="text-foreground">새 랭킹으로 교체</strong>하세요</li>
+          </ol>
+          <p className="mt-3 text-xs text-muted-foreground">
+            과거 성과가 미래를 보장하지 않습니다. 분산 투자를 권장합니다.
+          </p>
+        </CardContent>
+      </Card>
     </div>
   )
 }

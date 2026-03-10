@@ -2,7 +2,7 @@ import { Card, CardContent } from '@/components/ui/card'
 import { Skeleton } from '@/components/ui/skeleton'
 import { cn } from '@/lib/utils'
 import type { StrategySummary } from '@/types/backtest'
-import { STRATEGY_LABELS } from '@/types/backtest'
+import { STRATEGY_LABELS, STRATEGY_DESCRIPTIONS } from '@/types/backtest'
 
 interface MetricsCardsProps {
   summaries: StrategySummary[]
@@ -42,12 +42,15 @@ export function MetricsCards({ summaries, loading, selected, onSelect }: Metrics
           onClick={() => onSelect(s.strategy)}
         >
           <CardContent className="pt-4">
-            <h3 className="text-sm font-semibold mb-3">
+            <h3 className="text-sm font-semibold">
               {STRATEGY_LABELS[s.strategy] ?? s.strategy}
             </h3>
+            <p className="mb-3 text-[11px] text-muted-foreground">
+              {STRATEGY_DESCRIPTIONS[s.strategy] ?? ''}
+            </p>
             <div className="grid grid-cols-2 gap-y-2 text-xs">
               <div>
-                <span className="text-muted-foreground">CAGR</span>
+                <span className="text-muted-foreground">연평균 수익</span>
                 <p className={cn('font-bold tabular-nums', s.net_cagr > 0 ? 'text-positive' : 'text-negative')}>
                   {formatPct(s.net_cagr)}
                 </p>
@@ -57,11 +60,11 @@ export function MetricsCards({ summaries, loading, selected, onSelect }: Metrics
                 <p className="font-bold tabular-nums">{formatNum(s.net_sharpe)}</p>
               </div>
               <div>
-                <span className="text-muted-foreground">MDD</span>
+                <span className="text-muted-foreground">최대 손실</span>
                 <p className="font-bold tabular-nums text-destructive">{formatPct(s.net_mdd)}</p>
               </div>
               <div>
-                <span className="text-muted-foreground">IC</span>
+                <span className="text-muted-foreground">예측 정확도</span>
                 <p className="font-bold tabular-nums">{formatNum(s.ic)}</p>
               </div>
             </div>

@@ -55,6 +55,19 @@ def get_horizon_performance(
     return ranking_service.get_horizon_performance(db, horizon)
 
 
+@router.get("/{ticker}/price")
+def get_ticker_price(
+    ticker: str,
+    db: Session = Depends(get_db),
+):
+    """종목 최신 가격 (close, volume, 전일대비)"""
+    result = ranking_service.get_ticker_price(db, ticker)
+    if not result:
+        from fastapi import HTTPException
+        raise HTTPException(status_code=404, detail="Price data not found")
+    return result
+
+
 @router.get("/timeline/{ticker}")
 def get_ticker_timeline(
     ticker: str,

@@ -9,6 +9,7 @@ from app.config import get_settings
 from app.models.ranking import (
     RankingLongWithReasons,
     RankingShortWithReasons,
+    OhlcvDaily,
 )
 from app.models.backtest import STRATEGY_TABLES
 
@@ -156,6 +157,35 @@ def get_available_dates(db: Session, limit: int = 30):
         .order_by(RankingLongWithReasons.date.desc()).limit(limit).all()
     )
     return [r[0] for r in rows]
+
+
+def get_ticker_price(db: Session, ticker: str):
+    """종목 최신 가격 (close, volume, 전일대비)"""
+    padded = ticker.zfill(6)
+    rows = (
+        db.query(OhlcvDaily)
+        .filter(OhlcvDaily.ticker == padded)
+        .order_by(OhlcvDaily.date.desc())
+        .limit(2)
+        .all()
+    )
+    if not rows:
+        return None
+    today = rows[0]
+    prev = rows[1] if len(rows) > 1 else None
+    prev_close = prev.close if prev and prev.close else today.close
+    change = (today.close or 0) - prev_close
+    change_pct = (change / prev_close * 100) if prev_close else 0
+    return {
+        "ticker": padded,
+        "name": get_ticker_name(padded),
+        "date": today.date,
+        "close": today.close or 0,
+        "prev_close": prev_close,
+        "change": change,
+        "change_pct": round(change_pct, 2),
+        "volume": today.volume or 0,
+    }
 
 
 def get_horizon_performance(db: Session, horizon: str = "long_term"):

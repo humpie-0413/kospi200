@@ -60,10 +60,17 @@ export interface StrategySummary extends Record<string, unknown> {
 }
 
 export const STRATEGY_LABELS: Record<string, string> = {
-  bt120_long: 'Long 120일',
-  bt120_ens: 'Ensemble 120일',
-  bt20_short: 'Short 20일',
-  bt20_ens: 'Ensemble 20일',
+  bt120_long: '장기 매수',
+  bt120_ens: '장기 AI 앙상블',
+  bt20_short: '단기 매도',
+  bt20_ens: '단기 AI 앙상블',
+}
+
+export const STRATEGY_DESCRIPTIONS: Record<string, string> = {
+  bt120_long: '상위 10종목을 사서 6개월 보유',
+  bt120_ens: '4개 AI 모델의 평균 판단 (장기)',
+  bt20_short: '하위 10종목을 매도하여 한 달 보유',
+  bt20_ens: '4개 AI 모델의 평균 판단 (단기)',
 }
 
 export const VALID_STRATEGIES = ['bt120_long', 'bt120_ens', 'bt20_short', 'bt20_ens'] as const

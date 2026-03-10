@@ -1,5 +1,6 @@
 import { Badge } from '@/components/ui/badge'
-import { FEATURE_INFO, CATEGORY_COLORS } from '@/types/ranking'
+import { Tooltip, TooltipTrigger, TooltipContent } from '@/components/ui/tooltip'
+import { FEATURE_INFO, FEATURE_DESCRIPTIONS, CATEGORY_COLORS } from '@/types/ranking'
 import { cn } from '@/lib/utils'
 
 interface FeatureTagProps {
@@ -13,7 +14,9 @@ export function FeatureTag({ feature, percentile }: FeatureTagProps) {
     return <Badge variant="secondary">{feature}</Badge>
   }
   const colors = CATEGORY_COLORS[info.category]
-  return (
+  const desc = FEATURE_DESCRIPTIONS[feature]
+
+  const badge = (
     <Badge
       variant="secondary"
       className={cn(colors.bg, colors.text, 'border-0 font-normal')}
@@ -21,5 +24,17 @@ export function FeatureTag({ feature, percentile }: FeatureTagProps) {
       {info.label}
       <span className="ml-1 opacity-70">{percentile.toFixed(0)}%</span>
     </Badge>
+  )
+
+  if (!desc) return badge
+
+  return (
+    <Tooltip>
+      <TooltipTrigger>{badge}</TooltipTrigger>
+      <TooltipContent side="bottom">
+        <p className="font-semibold">{info.label}</p>
+        <p>{desc}</p>
+      </TooltipContent>
+    </Tooltip>
   )
 }

@@ -1,4 +1,4 @@
-from sqlalchemy import Column, Date, String, Float, Boolean
+from sqlalchemy import Column, Date, String, Float, Boolean, Integer
 from app.database import Base
 
 
@@ -77,3 +77,14 @@ class RankingShortDaily(Base):
     score_total_short = Column(Float)
     rank_total_short = Column(Float)
     in_universe = Column(Boolean)
+
+
+class OhlcvDaily(Base):
+    __tablename__ = "ohlcv_daily"
+    date = Column(Date, primary_key=True)
+    ticker = Column(String(6), primary_key=True)
+    open = Column(Integer)
+    high = Column(Integer)
+    low = Column(Integer)
+    close = Column(Integer)
+    volume = Column(Integer)

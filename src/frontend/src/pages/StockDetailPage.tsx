@@ -1,6 +1,6 @@
 import { useEffect, useState, useRef } from 'react'
 import { useParams, useLocation, Link } from 'react-router-dom'
-import { ArrowLeft } from 'lucide-react'
+import { ArrowLeft, TrendingUp, TrendingDown } from 'lucide-react'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
@@ -12,9 +12,46 @@ import { ScoreTimeline } from '@/components/rankings/ScoreTimeline'
 import { FeatureTag } from '@/components/rankings/FeatureTag'
 import { AiAnalysis } from '@/components/rankings/AiAnalysis'
 import { api } from '@/lib/api'
-import type { RankingItem, Horizon } from '@/types/ranking'
-import { getRankLabel, rankToScore, getScoreColor, generateSummary } from '@/types/ranking'
+import type { RankingItem, Horizon, CategoryKey } from '@/types/ranking'
+import { getRankLabel, rankToScore, getScoreColor, generateSummary, CATEGORY_KEYS, CATEGORY_LABELS, CATEGORY_ICONS } from '@/types/ranking'
 import { cn } from '@/lib/utils'
+
+interface PriceData {
+  close: number
+  prev_close: number
+  change: number
+  change_pct: number
+  volume: number
+}
+
+// P0-5: 카테고리 점수 기반 투자 포인트 생성
+function generateInvestmentPoint(item: RankingItem): { text: string; style: string } {
+  const scores: { key: CategoryKey; score: number }[] = CATEGORY_KEYS.map((k) => ({
+    key: k,
+    score: item[`cat_${k}` as keyof RankingItem] as number ?? 0,
+  }))
+  scores.sort((a, b) => b.score - a.score)
+  const top2 = scores.slice(0, 2)
+  const bottom2 = scores.slice(-2).reverse()
+
+  const topStr = top2.map((s) => `${CATEGORY_ICONS[s.key]}${CATEGORY_LABELS[s.key]}(${s.score.toFixed(0)})`).join(', ')
+  const bottomStr = bottom2.map((s) => `${CATEGORY_LABELS[s.key]}(${s.score.toFixed(0)})`).join(', ')
+
+  // 투자 성향 판단
+  const riskScore = (item.cat_risk ?? 0)
+  const momentumScore = (item.cat_momentum ?? 0)
+  const valueScore = (item.cat_value ?? 0)
+  let style = '균형 잡힌 종목'
+  if (riskScore >= 60 && valueScore >= 60) style = '안정적 가치투자 성향'
+  else if (momentumScore >= 60 && (item.cat_liquidity ?? 0) >= 60) style = '공격적 모멘텀 투자 성향'
+  else if (riskScore >= 60) style = '안정형 투자 성향'
+  else if (momentumScore >= 60) style = '성장형 투자 성향'
+
+  return {
+    text: `${topStr}이 강하지만, ${bottomStr}은 상대적으로 낮습니다.`,
+    style,
+  }
+}
 
 interface LocationState {
   item?: RankingItem
@@ -29,6 +66,7 @@ export function StockDetailPage() {
   const [item, setItem] = useState<RankingItem | null>(state?.item ?? null)
   const [horizon, setHorizon] = useState<Horizon>(state?.horizon ?? 'long_term')
   const [loading, setLoading] = useState(!state?.item)
+  const [price, setPrice] = useState<PriceData | null>(null)
 
   // 첫 렌더에서 state가 있으면 API 호출 건너뛰기
   const skipInitialFetch = useRef(!!state?.item)
@@ -50,6 +88,14 @@ export function StockDetailPage() {
       .catch(() => {})
       .finally(() => setLoading(false))
   }, [ticker, horizon])
+
+  // P0-6: 현재가 조회
+  useEffect(() => {
+    if (!ticker) return
+    api.rankings.price(ticker)
+      .then(setPrice)
+      .catch(() => setPrice(null))
+  }, [ticker])
 
   if (loading) {
     return (
@@ -83,7 +129,7 @@ export function StockDetailPage() {
         </Button>
       </Link>
 
-      {/* 종목 헤더 */}
+      {/* 종목 헤더 + 현재가 */}
       <div className="flex flex-wrap items-center gap-3">
         <h1 className="text-2xl font-bold">{item.name}</h1>
         <Badge variant="outline" className="font-mono text-xs">{item.ticker}</Badge>
@@ -100,13 +146,46 @@ export function StockDetailPage() {
         </Badge>
       </div>
 
+      {/* P0-6: 현재가 표시 */}
+      {price && (
+        <div className="flex items-center gap-3">
+          <span className="text-2xl font-bold tabular-nums">
+            {price.close.toLocaleString()}원
+          </span>
+          <span className={cn(
+            'flex items-center gap-0.5 text-sm font-semibold tabular-nums',
+            price.change > 0 ? 'text-red-500' : price.change < 0 ? 'text-blue-500' : 'text-muted-foreground'
+          )}>
+            {price.change > 0 ? <TrendingUp className="h-4 w-4" /> : price.change < 0 ? <TrendingDown className="h-4 w-4" /> : null}
+            {price.change > 0 ? '+' : ''}{price.change.toLocaleString()}원
+            ({price.change_pct > 0 ? '+' : ''}{price.change_pct.toFixed(2)}%)
+          </span>
+          <span className="text-xs text-muted-foreground">
+            거래량 {(price.volume / 1000).toFixed(0)}K
+          </span>
+        </div>
+      )}
+
       {/* 호라이즌 탭 */}
       <Tabs value={horizon} onValueChange={(v) => setHorizon(v as Horizon)}>
         <TabsList>
-          <TabsTrigger value="short_term">단기 20일</TabsTrigger>
           <TabsTrigger value="long_term">장기 120일</TabsTrigger>
+          <TabsTrigger value="short_term">단기 20일</TabsTrigger>
         </TabsList>
       </Tabs>
+
+      {/* P0-5: 투자 포인트 요약 */}
+      {item.cat_momentum != null && (() => {
+        const point = generateInvestmentPoint(item)
+        return (
+          <Card className="border-primary/20 bg-primary/5">
+            <CardContent className="py-4">
+              <p className="text-sm">{point.text}</p>
+              <p className="mt-1 text-xs font-medium text-primary">{point.style}</p>
+            </CardContent>
+          </Card>
+        )
+      })()}
 
       {/* 점수 + 등급 + TOP3 */}
       <Card>

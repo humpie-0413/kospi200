@@ -12,7 +12,7 @@ interface HeaderProps {
 
 const NAV_ITEMS = [
   { to: '/', label: '랭킹' },
-  { to: '/backtest', label: '백테스트' },
+  { to: '/backtest', label: '과거 성과' },
   { to: '/admin', label: '관리자' },
 ]
 

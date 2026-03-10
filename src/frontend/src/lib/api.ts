@@ -45,6 +45,10 @@ export const api = {
       if (params.page_size) sp.set('page_size', String(params.page_size))
       return request<{ items: RankingItem[]; total: number }>(`/rankings/history?${sp}`)
     },
+    price: (ticker: string) =>
+      request<{ close: number; prev_close: number; change: number; change_pct: number; volume: number }>(
+        `/rankings/${ticker}/price`
+      ),
   },
 
   backtest: {
