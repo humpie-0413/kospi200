@@ -187,11 +187,60 @@ kospi200/
 | BACKTEST-REDESIGN | 백테스트 전면 재설계 |
 | WRAP-UP | 프로젝트 정리 + 문서 최종화 |
 
-## 이어서 작업하기
+## 프로젝트 확인 / 이어서 작업하기
 
-1. `HANDOFF.md` 읽기 (핸드오프 가이드)
-2. `CLAUDE.md` 읽기 (프로젝트 전체 컨텍스트)
-3. `stages/ROADMAP_PROMPTS.md` 읽기 (남은 작업 프롬프트)
+### 처음 보는 사람 (코드 리뷰, 구조 파악)
+
+1. 이 README를 끝까지 읽기
+2. `src/frontend/src/App.tsx` — 프론트엔드 6페이지 라우팅 구조 확인
+3. `src/backend/app/main.py` — 백엔드 진입점 + API 라우터 마운트 확인
+4. `src/backend/app/routers/` — 각 API 엔드포인트 코드
+5. `scripts/daily_news_pipeline.py` — 데이터 파이프라인 전체 흐름
+
+### 이어서 개발하는 사람 (AI 포함)
+
+1. **`HANDOFF.md` 필독** — 핸드오프 가이드. 읽어야 할 파일 순서, 현황 요약, 세션별 변경 이력, 주의사항이 모두 정리되어 있음
+2. **`CLAUDE.md` 필독** — 프로젝트 전체 컨텍스트. 아키텍처, API 목록, 파이프라인 구조, 미완료 작업 등
+3. `stages/ROADMAP_PROMPTS.md` — 남은 작업(배포, 커스텀 랭킹, 수익화)에 대한 프롬프트
+4. `docs/UX_REVIEW_BEGINNER_INVESTOR.md` — UI/UX 검토 문서 + P0~P3 로드맵
+
+### 로컬에서 실행해보기
+
+```bash
+# 1. 사전 준비: Docker, Python 3.11+, Node.js 18+
+
+# 2. MySQL 컨테이너 시작 (최초 1회)
+docker run -d --name kospi-mysql \
+  -e MYSQL_ROOT_PASSWORD=<비밀번호> \
+  -e MYSQL_DATABASE=kospi200 \
+  -p 3306:3306 mysql:8.0 --local-infile=1
+
+# 3. 환경변수 설정
+cp .env.example src/backend/.env
+# src/backend/.env 열어서 DB_PASSWORD, API 키 등 실제 값 입력
+
+# 4. 백엔드 실행
+cd src/backend
+pip install -r requirements.txt
+uvicorn app.main:app --port 8000
+
+# 5. 프론트엔드 빌드 (별도 터미널)
+cd src/frontend
+npm install
+npm run build   # → dist/ 생성, FastAPI가 자동 서빙
+
+# 6. 브라우저에서 http://localhost:8000 접속
+```
+
+### 데이터가 없을 때
+
+처음 실행하면 DB가 비어있어 랭킹이 표시되지 않습니다. 데이터를 채우려면:
+
+1. `.env`에 네이버/DART/FMP API 키 입력
+2. `python scripts/daily_news_pipeline.py` 실행 (~25분)
+3. 파이프라인 완료 후 랭킹 페이지에 데이터 표시됨
+
+또는 관리자 페이지(`/admin`, 로그인 필요)에서 원버튼으로 파이프라인 실행 가능.
 
 ## 면책
 
