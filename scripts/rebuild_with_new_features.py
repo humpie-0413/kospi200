@@ -111,7 +111,7 @@ def main():
     import subprocess, os
     from dotenv import load_dotenv
     load_dotenv(PROJECT / ".env")
-    DB_PASSWORD = os.getenv("DB_PASSWORD", "1234")
+    DB_PASSWORD = os.getenv("DB_PASSWORD", "")
 
     for side in ["long", "short"]:
         pq_file = CAL_DIR / f"ranking_{side}_daily_with_reasons.parquet"

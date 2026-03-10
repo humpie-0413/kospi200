@@ -33,6 +33,12 @@ checkpoints/
 # New design files (applied)
 new/
 
+# Node.js
+node_modules/
+
+# Frontend build
+src/frontend/dist/
+
 # IDE
 .idea/
 .vscode/

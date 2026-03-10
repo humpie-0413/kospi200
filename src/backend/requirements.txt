@@ -7,7 +7,6 @@ PyJWT==2.9.0
 bcrypt==4.2.0
 apscheduler==3.10.4
 slowapi==0.1.9
-jinja2==3.1.4
 python-multipart==0.0.9
 # Pipeline dependencies (before/)
 pandas>=2.0
