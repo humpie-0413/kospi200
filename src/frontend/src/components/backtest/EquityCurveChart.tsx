@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef, useCallback } from 'react'
 import {
   LineChart,
   Line,
@@ -7,9 +7,9 @@ import {
   CartesianGrid,
   Tooltip,
   Legend,
-  ResponsiveContainer,
   Area,
   ComposedChart,
+  ResponsiveContainer,
 } from 'recharts'
 import { api } from '@/lib/api'
 import { Skeleton } from '@/components/ui/skeleton'
@@ -30,6 +30,8 @@ interface ChartPoint {
 export function EquityCurveChart({ strategy, phase }: EquityCurveChartProps) {
   const [data, setData] = useState<ChartPoint[]>([])
   const [loading, setLoading] = useState(true)
+  const [range, setRange] = useState<[number, number]>([0, 0])
+  const containerRef = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
     setLoading(true)
@@ -47,19 +49,55 @@ export function EquityCurveChart({ strategy, phase }: EquityCurveChartProps) {
           benchmark: benchMap.get(String(d.date)) ?? null,
         }))
         setData(merged)
+        setRange([0, merged.length - 1])
       })
       .catch(() => setData([]))
       .finally(() => setLoading(false))
   }, [strategy, phase])
 
+  // 마우스 휠 줌 + Shift 패닝
+  const handleWheel = useCallback((e: WheelEvent) => {
+    e.preventDefault()
+    const step = Math.max(1, Math.round(data.length * 0.04))
+    setRange(([s, end]) => {
+      const len = end - s
+      if (e.shiftKey) {
+        // Shift+휠: 좌우 이동
+        const dir = e.deltaY > 0 ? step : -step
+        const ns = Math.max(0, Math.min(data.length - 1 - len, s + dir))
+        return [ns, ns + len]
+      }
+      if (e.deltaY < 0) {
+        // 줌 인
+        if (len <= 20) return [s, end]
+        return [Math.min(end - 20, s + step), Math.max(s + 20, end - step)]
+      }
+      // 줌 아웃
+      return [Math.max(0, s - step), Math.min(data.length - 1, end + step)]
+    })
+  }, [data.length])
+
+  useEffect(() => {
+    const el = containerRef.current
+    if (!el || !data.length) return
+    el.addEventListener('wheel', handleWheel, { passive: false })
+    return () => el.removeEventListener('wheel', handleWheel)
+  }, [data.length, handleWheel])
+
   if (loading) return <Skeleton className="h-[350px] w-full rounded-xl" />
   if (!data.length) return <p className="text-sm text-muted-foreground">데이터 없음</p>
 
+  const visible = data.slice(range[0], range[1] + 1)
+
   return (
-    <div className="space-y-4">
+    <div ref={containerRef} className="space-y-4">
+      <p className="text-xs text-muted-foreground">
+        🖱️ 휠: 확대/축소 · Shift+휠: 좌우 이동 · {visible.length}일 / 전체 {data.length}일
+      </p>
+
       {/* 에쿼티 커브 */}
       <ResponsiveContainer width="100%" height={280}>
-        <LineChart data={data}>
+        <LineChart data={visible}>
           <CartesianGrid strokeDasharray="3 3" stroke="var(--color-border)" />
           <XAxis
             dataKey="date"
@@ -92,7 +130,7 @@ export function EquityCurveChart({ strategy, phase }: EquityCurveChartProps) {
 
       {/* 드로다운 */}
       <ResponsiveContainer width="100%" height={120}>
-        <ComposedChart data={data}>
+        <ComposedChart data={visible}>
           <CartesianGrid strokeDasharray="3 3" stroke="var(--color-border)" />
           <XAxis
             dataKey="date"
@@ -117,6 +155,17 @@ export function EquityCurveChart({ strategy, phase }: EquityCurveChartProps) {
           <Area type="monotone" dataKey="drawdown" fill="#F04452" fillOpacity={0.15} stroke="#F04452" strokeWidth={1} />
         </ComposedChart>
       </ResponsiveContainer>
+
+      {/* 줌 범위 인디케이터 */}
+      <div className="relative h-1.5 rounded-full bg-muted">
+        <div
+          className="absolute h-full rounded-full bg-primary/40"
+          style={{
+            left: `${(range[0] / Math.max(data.length - 1, 1)) * 100}%`,
+            width: `${((range[1] - range[0]) / Math.max(data.length - 1, 1)) * 100}%`,
+          }}
+        />
+      </div>
     </div>
   )
 }

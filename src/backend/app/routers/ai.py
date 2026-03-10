@@ -24,10 +24,12 @@ CACHE_TTL = 3600  # 1시간
 
 def _get_stock_data(db: Session, ticker: str, horizon: str) -> Optional[dict]:
     """DB에서 종목 랭킹 데이터 조회"""
+    from app.services.ranking_service import get_ticker_name
+
     table = "ranking_long_daily_with_reasons" if horizon == "long_term" else "ranking_short_daily_with_reasons"
     row = db.execute(
         text(f"""
-            SELECT date, ticker, name, score_total, rank_total,
+            SELECT date, ticker, score_total, rank_total,
                    top_feature_1, contrib_1, percentile_1,
                    top_feature_2, contrib_2, percentile_2,
                    top_feature_3, contrib_3, percentile_3,
@@ -41,7 +43,9 @@ def _get_stock_data(db: Session, ticker: str, horizon: str) -> Optional[dict]:
     ).fetchone()
     if not row:
         return None
-    return dict(row._mapping)
+    data = dict(row._mapping)
+    data["name"] = get_ticker_name(ticker)
+    return data
 
 
 def _build_prompt(data: dict, horizon: str) -> str:
