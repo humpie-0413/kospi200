@@ -3,175 +3,135 @@
 ## 프로젝트 개요
 KOSPI200 종목 AI 랭킹 웹 서비스. 기존 코드(`before/`)를 기반으로 구축 완료.
 
-## 현재 상태: 예측 심화 최적화 (Session C2) 완료
+## 현재 상태: Session D1 완료 — 실전 투입 강화
 
 ### 완료된 작업
 - Stage 0~7: 분석→설계→구현→배포 전 과정
-- 14개 피처 복원: OHLCV(14) + 뉴스(6) + ESG(4) + 재무(5) + 외부지수(7) = 52컬럼 패널
-- 랭킹 API: 매수/매도 분리 → 통합 스코어 순 페이지네이션 (KOSPI200 only, in_universe 필터)
-- UI: Toss 스타일 리디자인 (다크모드, 반응형, Chart.js 레이더/타임라인)
-- 뉴스/ESG 갭 해소 (P1~P7): 99,857건 감성분석, 일별 자동 갱신
-- 일별 자동화 파이프라인: `scripts/daily_news_pipeline.py` 10단계 통합 + APScheduler 06:00 KST
-- 6개 아이디어 분석 리포트: `docs/idea_analysis_report.md`
-- 관리자 대시보드 강화: freshness API + 원버튼 갱신 + 10단계 프로그레스 + 서버 시작 시 자동 체크
-- 외부 지수 통합 (Session C1): FMP/FDR → S&P500/VIX/WTI/US10Y/DXY + 시장 국면 (bull/neutral/bear)
-- 예측 심화 최적화 (Session C2): WF 검증 119/114 folds → feature weights 교정 + Track A 재학습
+- 52컬럼 패널: OHLCV(16) + 뉴스(6) + ESG(4) + 재무(5) + 외부지수(7) = 708K+ rows
+- React SPA: 5페이지 (랭킹/종목상세/백테스트/관리자/로그인) + Recharts + Tailwind + shadcn/ui
+- FastAPI 백엔드: 16개 API + JWT 인증 + APScheduler 06:00 KST
+- Session C2: WF 검증 119/114 folds → feature weights 교정
+- **Session D1**: L5 앙상블 버그 수정 + Time Decay 구현 + 프로덕션 보안 + MySQL NaN 수정
+
+### Session D1 핵심 변경 (2026-03-10)
+- **L5 `_build_model()` 치명적 버그 수정**: return 위치 오류 → 앙상블 4모델 정상 동작
+- **Time Decay 구현**: λ=3.0, H120 IR +38.5% (L5 코드 반영, config.yaml `use_time_decay: true`)
+- **MySQL NaN 수정**: float 컬럼 NaN → 0.0 변환 (LOAD DATA 실패 해결)
+- **당일 랭킹 표시**: 파이프라인 완료 후 최신 랭킹을 오늘 날짜로 복제
+- **프로덕션 보안**: CORS 환경변수화, JWT 경고, .dockerignore, Dockerfile 개선
 
 ## 디렉토리 구조
 ```
 kospi200/
-├── before/          ← 기존 프로젝트 코드 (읽기 전용)
-├── stages/          ← 단계별 프롬프트 (참조용)
-├── checkpoints/     ← 단계 완료 기록 (0~7 + FEATURE_RESTORE)
-├── src/backend/     ← FastAPI 백엔드 (메인 코드)
-├── scripts/         ← 데이터 파이프라인 스크립트
-├── docs/            ← 설계 문서, 디자인 핸드오프, 분석 리포트
-└── new/             ← 외부 AI가 제작한 디자인 파일 (적용 완료)
+├── before/              ← 기존 ML 코드 (.gitignore, 로컬 전용)
+├── src/backend/         ← FastAPI 백엔드
+├── src/frontend/        ← React SPA (Vite + shadcn/ui)
+├── scripts/             ← 데이터 파이프라인 스크립트
+├── configs/             ← ESG 키워드 등 설정
+├── data_drive/          ← 데이터 저장소 (.gitignore)
+├── docs/                ← 설계 문서, 분석 리포트
+├── checkpoints/         ← 단계 완료 기록
+└── stages/              ← 단계별 프롬프트 (참조용)
 ```
 
 ## 핵심 파일 (이어서 작업 시 우선 참조)
 | 파일 | 역할 |
 |------|------|
-| `scripts/daily_news_pipeline.py` | 10단계 통합 일일 파이프라인 (전체 데이터 갱신) |
-| `scripts/rebuild_panel_and_reasons.py` | 패널 뉴스/ESG 머지 + with_reasons + MySQL |
-| `scripts/collect_external_indices.py` | FMP/FDR 외부 지수 수집 + 시장 국면 |
-| `scripts/walk_forward_validation.py` | C2 Walk-Forward 검증 (Ridge/XGB/Ensemble/Decay/FS) |
-| `scripts/collect_news_naver_api.py` | 네이버 검색 API 뉴스 수집 |
-| `src/backend/app/services/ranking_service.py` | 랭킹 API 비즈니스 로직 |
-| `src/backend/app/routers/rankings.py` | 랭킹 라우터 (페이지네이션) |
-| `src/backend/app/services/scheduler.py` | APScheduler 06:00 KST 자동 실행 |
-| `src/backend/templates/rankings.html` | 랭킹 UI (Toss 디자인 + JS 로직) |
-| `src/backend/templates/base.html` | 공통 레이아웃 (다크모드 토글) |
-| `src/backend/static/css/common.css` | CSS 디자인 시스템 |
-| `docs/idea_analysis_report.md` | 6개 아이디어 분석 리포트 |
-| `docs/DESIGN_HANDOFF.md` | 디자인 변경 가이드 |
-| `checkpoints/STAGE_FEATURE_RESTORE.md` | 피처 복원 상세 |
+| `CLAUDE.md` | 프로젝트 전체 컨텍스트 (이 파일) |
+| `scripts/daily_news_pipeline.py` | 11단계 일일 파이프라인 (전체 데이터 갱신) |
+| `scripts/rebuild_panel_and_reasons.py` | 패널 머지 + with_reasons + MySQL 리로드 |
+| `before/ranking_backtest/src/stages/modeling/l5_train_models.py` | ML 모델 학습 (Time Decay + 앙상블) |
+| `before/ranking_backtest/configs/config.yaml` | 전체 모델/파이프라인 설정 |
+| `src/backend/app/main.py` | FastAPI 앱 + SPA 서빙 |
+| `src/backend/app/routers/admin.py` | 관리자 API (파이프라인 트리거) |
+| `src/backend/app/pipeline/wrapper.py` | 파이프라인 래퍼 (asyncio) |
+| `src/frontend/src/App.tsx` | React 라우터 (5페이지) |
+| `src/frontend/src/lib/api.ts` | API 클라이언트 |
+| `src/frontend/src/hooks/useRankings.ts` | 랭킹 데이터 훅 |
 
 ## 환경
-- Docker MySQL: `kospi-mysql` (credentials in `.env`)
+- Docker MySQL: `kospi-mysql` (root/1234, DB: kospi200)
 - 서버 실행: `cd src/backend && uvicorn app.main:app --port 8000`
-- DART API 키: `.env`에 `DART_API_KEY` 설정
+- 프론트엔드 빌드: `cd src/frontend && npm run build`
 - 스케줄러: .env에서 활성 (SCHEDULER_ENABLED=true, 06:00 KST)
-- Naver API: .env에 NAVER_CLIENT_ID/SECRET 설정
-- FMP API: .env에 FMP_API_KEY 설정 (무료 250회/일, 외부 지수 수집용)
+- API 키: .env에 NAVER_CLIENT_ID/SECRET, FMP_API_KEY, DART_API_KEY
 
 ## 시스템 아키텍처
 
 ### 데이터 흐름
 ```
-FDR(OHLCV) + DART(재무) + 네이버(뉴스) + ESG키워드
+FDR(OHLCV) + DART(재무) + 네이버(뉴스) + ESG키워드 + FMP(외부지수)
     ↓
-42컬럼 패널 (panel_merged_daily.parquet, 708K+ rows)
+52컬럼 패널 (panel_merged_daily.parquet, 708K+ rows)
     ↓
-앙상블 모델: XGBoost(90/50%) + Ridge(5/30%) + RF(3/10%) + Grid(2/10%)
-    ↓
-Track A L8 랭킹: z-score 정규화 → 가중합 → score_total → rank
+Track A L8 랭킹: z-score × feature_weights → score_total → rank
     ↓
 with_reasons: 7카테고리 점수 + top3 피처 + 백분위
     ↓
-MySQL (ranking_long/short_daily_with_reasons)
+MySQL (ranking_long/short_daily_with_reasons) + 당일 날짜 복제
     ↓
-FastAPI 14개 엔드포인트 → Toss 스타일 UI
+FastAPI 16개 엔드포인트 → React SPA
 ```
 
-### 모델 구성
-| 모델 | Long 가중치 | Short 가중치 |
-|------|-----------|------------|
-| XGBoost | 90% | 50% |
-| Ridge | 5% | 30% |
-| Random Forest | 3% | 10% |
-| Grid | 2% | 10% |
+### 프론트엔드 스택
+| 기술 | 버전 | 용도 |
+|------|------|------|
+| React | 19 | UI 프레임워크 |
+| React Router | 7 | SPA 라우팅 (5페이지) |
+| Tailwind CSS | 4 | 스타일링 |
+| shadcn/ui | - | UI 컴포넌트 |
+| Recharts | 3 | 차트 (레이더, 라인, 영역) |
+| Vite | 7 | 빌드 도구 |
 
 ### API 엔드포인트 (16개)
-- 랭킹: GET /api/rankings, /api/rankings/{ticker}, /api/rankings/dates
-- 인증: POST /api/auth/login, /register, /refresh
-- 파이프라인: POST /api/admin/pipeline/daily, /collect, /predict, /run-all, GET /pipeline/status, /pipeline/logs
-- 관리자: GET /api/admin/freshness
-- UI: GET /rankings, /backtest
-
-## 데이터 현황 (2026-03-10 기준)
-| 구분 | 피처수 | 커버리지 | 갱신 |
-|------|--------|----------|------|
-| OHLCV 파생 | 16 (14+RSI/BB, MACD제거) | 100% | 일별 자동 |
-| 뉴스 감성 | 6 | 갭 해소 | 일별 자동 |
-| ESG | 4 | 갭 해소 | 일별 자동 |
-| 재무(DART) | 5 | 86% | 연간 |
-| 외부 지수 | 7 (6+regime) | 100% | 일별 자동 (FMP/FDR) |
-
-- 패널: 708,452 rows × 52 columns (2026-03-09까지)
-- MySQL: ranking_long/short_daily_with_reasons 각 708,452 rows
-- KOSPI200 in_universe: 198종목
+- 랭킹: GET /api/rankings, /rankings/{ticker}, /rankings/dates, /rankings/timeline/{ticker}, /rankings/history, /rankings/performance
+- 백테스트: GET /api/backtest/metrics, /equity-curve, /summary
+- 인증: POST /api/auth/login, /refresh
+- 관리자: GET /api/admin/freshness, /pipeline/status, /pipeline/logs
+- 관리자: POST /api/admin/pipeline/daily, /collect, /predict, /run-all
+- 헬스: GET /api/health
 
 ## 11단계 일일 파이프라인 (`scripts/daily_news_pipeline.py`)
 ```
-Step 0a: 유니버스 멤버십 확장 (새 월이면 forward-fill)
-Step 0b: OHLCV 수집 (FinanceDataReader, ~3분/307종목)
-Step 0c: 기술적 피처 재계산 (14개 OHLCV 파생, shift(1))
-Step 0d: 패널 재구축 (build_panel_merged_daily, ~12초)
-Step 0e: 외부 지수 수집 (FMP/FDR → 파생피처 + 시장국면)
-Step 1:  네이버 검색 API 뉴스 수집
+Step 0a: 유니버스 멤버십 확장
+Step 0b: OHLCV 수집 (FinanceDataReader)
+Step 0c: 기술적 피처 재계산 (14개 OHLCV 파생)
+Step 0d: 패널 재구축
+Step 0e: 외부 지수 수집 (FMP/FDR)
+Step 1:  뉴스 수집 (네이버 API)
 Step 2:  KR-FinBERT-SC 감성분석
-Step 3:  news_sentiment_daily.parquet 갱신
-Step 4:  esg_daily.parquet 갱신
-Step 5:  패널 뉴스/ESG/외부지수 머지 + Track A 예측 + with_reasons 재생성
-Step 6:  MySQL 리로드
+Step 3:  news_sentiment_daily 갱신
+Step 4:  esg_daily 갱신
+Step 5:  패널 머지 + Track A + with_reasons
+Step 6:  MySQL 리로드 + 당일 날짜 복제
 ```
-- 총 소요: ~25분
-- 로그: `data_drive/data_backup/daily_pipeline.log`
-- **중요**: Step 5에서 Track A 실행 전 dataset_daily.parquet/.csv 삭제 필요 (artifact_exists()가 둘 다 체크)
-
-## 아이디어 분석 결과 요약 (`docs/idea_analysis_report.md`)
-| # | 아이디어 | 소요(h) | 권장 순위 |
-|---|---------|---------|----------|
-| 6 | 관리자 대시보드 강화 (원버튼 갱신 + 상태 표시) | 12~18 | **1순위** |
-| 5 | MVP + GitHub 배포 (.gitignore, 키정리, README) | 5~12 | **2순위** |
-| 1 | 기술적 지표 추가 (RSI/MACD/Bollinger) | 8~12 | **3순위** |
-| 3 | 예측 최적화 (XGB 정규화, 앙상블 가중치) | 6~60 | **4순위** |
-| 4 | 외부 지수 통합 (VIX/S&P500 → 시장 국면) | 16~20 | **5순위** |
-| 2 | 커스텀 랭킹 + 구독 수익화 | 56~80 | **6순위** |
-
-### 권장 실행 순서
-- Phase A (즉시): #6 관리자 대시보드 + #5 GitHub 준비
-- Phase B (1주): #1 지표 추가 + #3 Quick Win 최적화
-- Phase C (2~3주): #4 시장 국면 모듈 + #3 심화 최적화
-- Phase D (1~2개월): #2 커스텀 랭킹 + 구독 시스템
-
-### 핵심 인사이트
-- ~~Git 미사용~~ → GitHub 배포 완료 (humpie-0413/kospi200)
-- MVP 완성도: 6.7/10 (핵심 기능 작동, 보안/테스트/CI 미흡)
-- 외부 지수는 랭킹 직접 효과보다 시장 국면 모듈로 활용이 효과적
-- XGBoost 과적합 징후 (IC 0.733pt 하락) → 정규화 강화 필요
-- 커스텀 랭킹은 모델 정확도 검증 후에 의미 있음
-
-## 참고 자료 (Phase C~D에서 활용)
-- `C:\0_project\claude-trading-skills/` — 33개 트레이딩 스킬 패키지 (git clone 완료)
-  - `skills/macro-regime-detector/` → Phase C1 시장 국면 판별 로직 참조
-  - `skills/backtest-expert/references/` → Phase C2 walk-forward 검증 방법론
-  - `skills/economic-calendar-fetcher/` → Phase C1 FMP API 호출 패턴
-  - `skills/us-market-bubble-detector/` → 버블 스코어링 참조
-  - `skills/canslim-screener/` → Phase D1 다중 팩터 스코어링 참조
+- 총 소요: ~25분, 06:00 KST 자동 실행
+- Step 6에서 NaN→0.0 변환 + secure_file_priv 경로 사용
+- 파이프라인 완료 시 당일 날짜로 랭킹 표시
 
 ## 알려진 이슈
-- 뉴스/ESG: 일별 자동 갱신 중이나 과거 갭(~2024-12-31) 존재
-- ticker zfill(6) 매핑 필요 (DB는 leading zero 없음)
-- dataset_daily 파일 잔존 시 Track A가 최신 패널 무시 (반드시 삭제)
-- Track A L8 앙상블: 모든 모델이 동일 feature_weights 사용 → 앙상블 가중치 변경 무의미 (코드 개선 필요)
-- ~~보안: .env에 API키/비밀번호 포함~~ → 시크릿 제거 완료, .env.example 제공
-- 테스트 코드 거의 없음, CI/CD 미구축
+- 뉴스/ESG: 과거 갭(~2024-12-31) 존재
+- ticker zfill(6) 매핑 필요
+- dataset_daily 파일 잔존 시 Track A가 최신 패널 무시 (삭제 필요)
+- before/ 디렉토리는 .gitignore → L5 변경사항은 로컬 전용
+- 테스트 코드 없음, CI/CD 미구축
+- Jinja 템플릿(`src/backend/templates/`)은 레거시, React SPA가 대체
 
 ## 미완료 작업 (다음 세션 후보)
-1. ~~뉴스 데이터 갭~~ → 완료
-2. ~~ESG 데이터 갭~~ → 완료
-3. ~~일별 전체 데이터 갱신 파이프라인~~ → 완료
-4. ~~6개 아이디어 분석 리포트~~ → 완료 (`docs/idea_analysis_report.md`)
-5. ~~관리자 대시보드 강화~~ → 완료 (`checkpoints/STAGE_ADMIN_DASHBOARD.md`)
-6. ~~GitHub 배포~~ → 완료 (https://github.com/humpie-0413/kospi200)
-7. ~~기술적 지표 추가~~ → 완료 (RSI_14, bollinger_pctb; MACD_signal IC≈0 제거, Session B1+B2)
-8. ~~예측 최적화~~ → C2 심화 완료 (WF 검증 + feature weights 교정, `checkpoints/STAGE_MODEL_OPTIMIZE.md`)
-9. **backtest 페이지 디자인**: rankings와 동일 Toss 스타일 적용
-10. ~~외부 지수 통합~~ → 완료 (Session C1, `checkpoints/STAGE_EXTERNAL_INDICES.md`)
-11. **커스텀 랭킹 + 구독** (z-score 매트릭스 + 사용자 피처 선택 + 결제)
-- 전체 로드맵 + 세션별 프롬프트: `stages/ROADMAP_PROMPTS.md` 참조
+1. ~~뉴스/ESG 갭~~ → 완료
+2. ~~관리자 대시보드~~ → 완료
+3. ~~GitHub 배포~~ → 완료
+4. ~~기술적 지표~~ → 완료
+5. ~~예측 최적화~~ → C2 완료
+6. ~~외부 지수~~ → C1 완료
+7. ~~React 프론트엔드~~ → D1 완료
+8. ~~L5 앙상블 버그~~ → D1 수정
+9. ~~Time Decay~~ → D1 구현
+10. ~~MySQL NaN 에러~~ → D1 수정
+11. **backtest 페이지 디자인 개선**
+12. **커스텀 랭킹 + 구독 수익화**
+13. **CI/CD + 테스트 코드**
+14. **L5 재학습 실행** (Time Decay + 앙상블 수정 반영, 백테스트 성과 확인)
 
 ## 토큰 절약 규칙
 - 인사/면책/부연 금지. 결과만 출력.
