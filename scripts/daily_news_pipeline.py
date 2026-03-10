@@ -8,11 +8,12 @@
   0b. OHLCV 수집 (FinanceDataReader)
   0c. 기술적 피처 재계산 (14개 OHLCV 파생)
   0d. 패널 재구축 (OHLCV + 재무 + 유니버스)
+  0e. 외부 지수 수집 (FMP/FDR → 파생피처 + 시장국면)
   1. 네이버 검색 API로 전일 뉴스 수집
   2. KR-FinBERT-SC 감성분석
   3. news_sentiment_daily.parquet 갱신
   4. esg_daily.parquet 갱신
-  5. 패널 머지 (뉴스/ESG) + Track A 예측 + with_reasons
+  5. 패널 머지 (뉴스/ESG/외부지수) + Track A 예측 + with_reasons
   6. MySQL 리로드
 """
 import os
@@ -177,6 +178,19 @@ def step0d_panel():
     )
     panel.to_parquet(CAL_DIR / "panel_merged_daily.parquet", index=False)
     log.info(f"[Step0d] Panel rebuilt: {panel.shape}, max_date={panel['date'].max()}")
+
+
+# ═══════════════════════════════════════════════
+# Step 0e: 외부 지수 수집 (FMP/FDR)
+# ═══════════════════════════════════════════════
+def step0e_external_indices(target_date):
+    """외부 지수 일별 갱신 (S&P500, VIX, WTI, US10Y, DXY)"""
+    if str(PROJECT / "scripts") not in sys.path:
+        sys.path.insert(0, str(PROJECT / "scripts"))
+    from collect_external_indices import update_daily
+    result = update_daily(target_date)
+    n = len(result) if result is not None else 0
+    log.info(f"[Step0e] External indices: {n} rows")
 
 
 # ═══════════════════════════════════════════════
@@ -480,6 +494,11 @@ def run_pipeline(target_date=None, on_step=None):
     step0d_panel()
     log.info(f"  Step0d done: {time.time()-t0:.0f}s")
     _s(3, "done")
+
+    # Step 0e: 외부 지수 수집
+    t0 = time.time()
+    step0e_external_indices(target_date)
+    log.info(f"  Step0e done: {time.time()-t0:.0f}s")
 
     # Step 1: 뉴스 수집
     _s(4)

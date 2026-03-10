@@ -21,6 +21,8 @@ DB_PASSWORD = os.environ.get("DB_PASSWORD", "")
 NEWS_COLS = ["news_sentiment", "news_conviction", "news_volume",
              "news_sentiment_ewm5", "news_sentiment_ewm20", "news_sentiment_surprise"]
 ESG_COLS = ["esg_score", "environmental_score", "social_score", "governance_score"]
+EXTERNAL_COLS = ["sp500_ret_1d", "vix_level", "vix_change_1d",
+                 "oil_ret_1d", "us10y_level", "dxy_ret_1d", "market_regime"]
 K = 5  # shrinkage
 
 
@@ -101,6 +103,22 @@ def merge_panel():
     panel = panel.merge(esg_feats[["date", "ticker"] + ESG_COLS],
                         on=["date", "ticker"], how="left")
 
+    # 외부 지수 피처 (date-level broadcast, T-1 lag 적용 완료)
+    ext_path = BACKUP / "external_indices_daily.parquet"
+    if ext_path.exists():
+        log.info("Merging external indices...")
+        panel = panel.drop(columns=EXTERNAL_COLS, errors="ignore")
+        ext = pd.read_parquet(ext_path)
+        ext["date"] = pd.to_datetime(ext["date"])
+        ext_cols = [c for c in EXTERNAL_COLS if c in ext.columns]
+        panel = panel.merge(ext[["date"] + ext_cols], on="date", how="left")
+        p25 = panel[panel.date >= "2025-01-01"]
+        for c in ext_cols:
+            nn = p25[c].notna().sum()
+            log.info(f"  2025+ {c}: {nn}/{len(p25)} non-null")
+    else:
+        log.warning("external_indices_daily.parquet not found — skipping")
+
     # 저장
     panel.to_parquet(CAL_DIR / "panel_merged_daily.parquet", index=False)
     log.info(f"Panel saved: {panel.shape}")
@@ -129,8 +147,10 @@ FEATURE_CATEGORY = {
     "news_volume": "sentiment",
     "esg_score": "esg", "environmental_score": "esg",
     "social_score": "esg", "governance_score": "esg",
+    "sp500_ret_1d": "macro", "vix_level": "macro", "vix_change_1d": "macro",
+    "oil_ret_1d": "macro", "us10y_level": "macro", "dxy_ret_1d": "macro",
 }
-CATEGORIES = ["momentum", "risk", "profitability", "value", "liquidity", "sentiment", "esg"]
+CATEGORIES = ["momentum", "risk", "profitability", "value", "liquidity", "sentiment", "esg", "macro"]
 
 
 def load_feature_list(yaml_path):

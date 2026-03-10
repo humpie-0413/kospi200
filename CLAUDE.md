@@ -3,17 +3,19 @@
 ## 프로젝트 개요
 KOSPI200 종목 AI 랭킹 웹 서비스. 기존 코드(`before/`)를 기반으로 구축 완료.
 
-## 현재 상태: 전 단계(0~7) + 피처 복원 + UI 리디자인 + 뉴스/ESG 갭 해소 + 일별 자동화 + 아이디어 분석 + 관리자 대시보드 강화 완료
+## 현재 상태: 예측 심화 최적화 (Session C2) 완료
 
 ### 완료된 작업
 - Stage 0~7: 분석→설계→구현→배포 전 과정
-- 14개 피처 복원: OHLCV(14) + 뉴스(6) + ESG(4) + 재무(5) = 42컬럼 패널
+- 14개 피처 복원: OHLCV(14) + 뉴스(6) + ESG(4) + 재무(5) + 외부지수(7) = 52컬럼 패널
 - 랭킹 API: 매수/매도 분리 → 통합 스코어 순 페이지네이션 (KOSPI200 only, in_universe 필터)
 - UI: Toss 스타일 리디자인 (다크모드, 반응형, Chart.js 레이더/타임라인)
 - 뉴스/ESG 갭 해소 (P1~P7): 99,857건 감성분석, 일별 자동 갱신
 - 일별 자동화 파이프라인: `scripts/daily_news_pipeline.py` 10단계 통합 + APScheduler 06:00 KST
 - 6개 아이디어 분석 리포트: `docs/idea_analysis_report.md`
 - 관리자 대시보드 강화: freshness API + 원버튼 갱신 + 10단계 프로그레스 + 서버 시작 시 자동 체크
+- 외부 지수 통합 (Session C1): FMP/FDR → S&P500/VIX/WTI/US10Y/DXY + 시장 국면 (bull/neutral/bear)
+- 예측 심화 최적화 (Session C2): WF 검증 119/114 folds → feature weights 교정 + Track A 재학습
 
 ## 디렉토리 구조
 ```
@@ -32,6 +34,8 @@ kospi200/
 |------|------|
 | `scripts/daily_news_pipeline.py` | 10단계 통합 일일 파이프라인 (전체 데이터 갱신) |
 | `scripts/rebuild_panel_and_reasons.py` | 패널 뉴스/ESG 머지 + with_reasons + MySQL |
+| `scripts/collect_external_indices.py` | FMP/FDR 외부 지수 수집 + 시장 국면 |
+| `scripts/walk_forward_validation.py` | C2 Walk-Forward 검증 (Ridge/XGB/Ensemble/Decay/FS) |
 | `scripts/collect_news_naver_api.py` | 네이버 검색 API 뉴스 수집 |
 | `src/backend/app/services/ranking_service.py` | 랭킹 API 비즈니스 로직 |
 | `src/backend/app/routers/rankings.py` | 랭킹 라우터 (페이지네이션) |
@@ -85,29 +89,31 @@ FastAPI 14개 엔드포인트 → Toss 스타일 UI
 - 관리자: GET /api/admin/freshness
 - UI: GET /rankings, /backtest
 
-## 데이터 현황 (2026-03-09 기준)
+## 데이터 현황 (2026-03-10 기준)
 | 구분 | 피처수 | 커버리지 | 갱신 |
 |------|--------|----------|------|
 | OHLCV 파생 | 16 (14+RSI/BB, MACD제거) | 100% | 일별 자동 |
 | 뉴스 감성 | 6 | 갭 해소 | 일별 자동 |
 | ESG | 4 | 갭 해소 | 일별 자동 |
 | 재무(DART) | 5 | 86% | 연간 |
+| 외부 지수 | 7 (6+regime) | 100% | 일별 자동 (FMP/FDR) |
 
-- 패널: 708,452 rows × 42 columns (2026-03-09까지)
+- 패널: 708,452 rows × 52 columns (2026-03-09까지)
 - MySQL: ranking_long/short_daily_with_reasons 각 708,452 rows
 - KOSPI200 in_universe: 198종목
 
-## 10단계 일일 파이프라인 (`scripts/daily_news_pipeline.py`)
+## 11단계 일일 파이프라인 (`scripts/daily_news_pipeline.py`)
 ```
 Step 0a: 유니버스 멤버십 확장 (새 월이면 forward-fill)
 Step 0b: OHLCV 수집 (FinanceDataReader, ~3분/307종목)
 Step 0c: 기술적 피처 재계산 (14개 OHLCV 파생, shift(1))
 Step 0d: 패널 재구축 (build_panel_merged_daily, ~12초)
+Step 0e: 외부 지수 수집 (FMP/FDR → 파생피처 + 시장국면)
 Step 1:  네이버 검색 API 뉴스 수집
 Step 2:  KR-FinBERT-SC 감성분석
 Step 3:  news_sentiment_daily.parquet 갱신
 Step 4:  esg_daily.parquet 갱신
-Step 5:  패널 뉴스/ESG 머지 + Track A 예측 + with_reasons 재생성
+Step 5:  패널 뉴스/ESG/외부지수 머지 + Track A 예측 + with_reasons 재생성
 Step 6:  MySQL 리로드
 ```
 - 총 소요: ~25분
@@ -161,9 +167,9 @@ Step 6:  MySQL 리로드
 5. ~~관리자 대시보드 강화~~ → 완료 (`checkpoints/STAGE_ADMIN_DASHBOARD.md`)
 6. ~~GitHub 배포~~ → 완료 (https://github.com/humpie-0413/kospi200)
 7. ~~기술적 지표 추가~~ → 완료 (RSI_14, bollinger_pctb; MACD_signal IC≈0 제거, Session B1+B2)
-8. ~~예측 최적화~~ → Quick Win 완료 (XGB l5 정규화, MACD 제거, `checkpoints/STAGE_MODEL_RETRAIN.md`)
+8. ~~예측 최적화~~ → C2 심화 완료 (WF 검증 + feature weights 교정, `checkpoints/STAGE_MODEL_OPTIMIZE.md`)
 9. **backtest 페이지 디자인**: rankings와 동일 Toss 스타일 적용
-10. **외부 지수 통합** (FMP API: VIX/S&P500/WTI/금리 → 시장 국면 모듈)
+10. ~~외부 지수 통합~~ → 완료 (Session C1, `checkpoints/STAGE_EXTERNAL_INDICES.md`)
 11. **커스텀 랭킹 + 구독** (z-score 매트릭스 + 사용자 피처 선택 + 결제)
 - 전체 로드맵 + 세션별 프롬프트: `stages/ROADMAP_PROMPTS.md` 참조
 
