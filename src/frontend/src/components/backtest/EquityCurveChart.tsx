@@ -14,6 +14,13 @@ import {
 import { api } from '@/lib/api'
 import { Skeleton } from '@/components/ui/skeleton'
 
+const PERIOD_PRESETS = [
+  { label: '전체', days: 0 },
+  { label: '5년', days: 252 * 5 },
+  { label: '3년', days: 252 * 3 },
+  { label: '1년', days: 252 },
+]
+
 interface EquityCurveChartProps {
   strategy: string
   phase?: string
@@ -92,8 +99,38 @@ export function EquityCurveChart({ strategy, phase }: EquityCurveChartProps) {
   const eqReturn = ((lastEq - 1) * 100).toFixed(1)
   const bmReturn = ((lastBm - 1) * 100).toFixed(1)
 
+  const applyPreset = (days: number) => {
+    if (days === 0 || days >= data.length) {
+      setRange([0, data.length - 1])
+    } else {
+      setRange([Math.max(0, data.length - days), data.length - 1])
+    }
+  }
+
   return (
     <div ref={containerRef} className="space-y-4">
+      {/* 기간 프리셋 버튼 (P1-8) */}
+      <div className="flex items-center gap-1.5">
+        {PERIOD_PRESETS.map((p) => {
+          const isActive = p.days === 0
+            ? range[0] === 0 && range[1] === data.length - 1
+            : range[0] === Math.max(0, data.length - p.days) && range[1] === data.length - 1
+          return (
+            <button
+              key={p.label}
+              onClick={() => applyPreset(p.days)}
+              className={`rounded-md px-2.5 py-1 text-xs font-medium transition-colors ${
+                isActive
+                  ? 'bg-primary text-primary-foreground'
+                  : 'bg-muted text-muted-foreground hover:bg-muted/80'
+              }`}
+            >
+              {p.label}
+            </button>
+          )
+        })}
+      </div>
+
       {/* 수익률 요약 */}
       <div className="flex items-center gap-4 text-sm">
         <span>

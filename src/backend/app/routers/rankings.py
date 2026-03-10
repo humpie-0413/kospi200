@@ -46,6 +46,24 @@ def get_available_dates(
     return ranking_service.get_available_dates(db, limit)
 
 
+@router.get("/freshness")
+def get_public_freshness(db: Session = Depends(get_db)):
+    """공개 데이터 신선도 (인증 불요, P1-9)"""
+    from sqlalchemy import text
+    tables = [
+        ("ranking_long", "ranking_long_daily_with_reasons"),
+        ("ranking_short", "ranking_short_daily_with_reasons"),
+    ]
+    result = {}
+    for key, table in tables:
+        try:
+            row = db.execute(text(f"SELECT MAX(date) FROM {table}")).fetchone()
+            result[key] = {"max_date": str(row[0]) if row[0] else None}
+        except Exception:
+            result[key] = {"max_date": None}
+    return result
+
+
 @router.get("/performance")
 def get_horizon_performance(
     horizon: str = Query("long_term", pattern="^(short_term|long_term)$"),

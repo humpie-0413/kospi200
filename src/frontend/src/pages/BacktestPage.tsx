@@ -94,12 +94,17 @@ export function BacktestPage() {
               )}>
                 {current.net_cagr > 0 ? '+' : ''}{(current.net_cagr * 100).toFixed(1)}%
               </p>
-              <p className="mt-2 text-xs text-muted-foreground leading-relaxed">
-                100만원 투자 시{' '}
-                <span className="font-semibold text-foreground">
-                  {(100 * (1 + current.net_cagr)).toFixed(0)}만원
-                </span>
+              <p className="mt-1 text-xs text-muted-foreground leading-relaxed">
+                매년 평균 이만큼 벌었다는 뜻이에요
               </p>
+              {current.net_total_return != null && (
+                <p className="mt-1 text-xs">
+                  총 누적 수익{' '}
+                  <span className={cn('font-bold', current.net_total_return > 0 ? 'text-red-500' : 'text-blue-500')}>
+                    {current.net_total_return > 0 ? '+' : ''}{(current.net_total_return * 100).toFixed(1)}%
+                  </span>
+                </p>
+              )}
               {/* 배경 장식 */}
               <div className={cn(
                 'absolute -right-4 -top-4 h-20 w-20 rounded-full opacity-5',
@@ -224,18 +229,27 @@ export function BacktestPage() {
                 </thead>
                 <tbody>
                   {[
-                    { key: 'net_cagr', label: '연간 수익률', desc: '1년 기준 복리 수익', fmt: 'pct' },
-                    { key: 'gross_cagr', label: '총 수익률', desc: '수수료 제외 수익', fmt: 'pct' },
-                    { key: 'net_sharpe', label: 'Sharpe', desc: '위험 대비 수익 효율', fmt: 'num' },
-                    { key: 'net_mdd', label: 'MDD', desc: '최대 낙폭', fmt: 'pct' },
-                    { key: 'net_hit_ratio', label: '승률', desc: '수익 거래 비율', fmt: 'pct' },
-                    { key: 'ic', label: 'IC', desc: '예측 정확도', fmt: 'num' },
-                    { key: 'rank_ic', label: 'Rank IC', desc: '순위 예측 정확도', fmt: 'num' },
-                    { key: 'avg_turnover_oneway', label: '회전율', desc: '매매 빈도', fmt: 'pct' },
-                    { key: 'net_calmar_ratio', label: 'Calmar', desc: '수익/최대손실 비율', fmt: 'num' },
-                  ].map(({ key, label, desc, fmt }) => (
+                    { key: 'net_cagr', label: '연간 수익률(CAGR)', desc: '1년 기준 복리 수익률', detail: '매년 평균적으로 벌어들인 수익률. 10%면 매년 10%씩 복리로 불어난다는 뜻', fmt: 'pct' },
+                    { key: 'net_total_return', label: '총 누적 수익률', desc: '전체 기간 총 수익', detail: '처음부터 끝까지 투자했을 때 총 수익률. 100만원→158만원이면 +58%', fmt: 'pct' },
+                    { key: 'net_sharpe', label: 'Sharpe 비율', desc: '위험 대비 수익 효율', detail: '위험 1단위당 수익. 1.0 이상이면 우수, 0.5 이하면 부족. 높을수록 효율적', fmt: 'num' },
+                    { key: 'net_mdd', label: 'MDD (최대낙폭)', desc: '투자 중 최악의 손실', detail: '최고점에서 최저점까지 떨어진 최대 폭. -20%면 100만원이 80만원까지 빠진 적 있다는 뜻', fmt: 'pct' },
+                    { key: 'net_hit_ratio', label: '승률', desc: '수익 거래 비율', detail: '전체 거래 중 이익을 본 비율. 60%면 10번 중 6번 수익', fmt: 'pct' },
+                    { key: 'ic', label: 'IC (정보계수)', desc: 'AI 예측 정확도', detail: 'AI 예측과 실제 결과의 상관관계. 0.05 이상이면 유의미, 0.1 이상이면 우수', fmt: 'num' },
+                    { key: 'rank_ic', label: 'Rank IC', desc: '순위 예측 정확도', detail: '순위 기준 예측 정확도. IC보다 안정적인 지표. 0.05 이상이면 양호', fmt: 'num' },
+                    { key: 'avg_turnover_oneway', label: '회전율', desc: '매매 빈도', detail: '리밸런싱 때 교체되는 종목 비율. 높으면 거래 비용 증가', fmt: 'pct' },
+                    { key: 'net_calmar_ratio', label: 'Calmar 비율', desc: '수익 대비 최대손실', detail: 'CAGR을 MDD로 나눈 값. 1.0 이상이면 양호. 수익 대비 위험이 적다는 뜻', fmt: 'num' },
+                  ].map(({ key, label, desc, detail, fmt }) => (
                     <tr key={key} className="border-b last:border-0">
-                      <td className="py-2 pr-4 font-medium">{label}</td>
+                      <td className="py-2 pr-4 font-medium">
+                        <Tooltip>
+                          <TooltipTrigger className="underline decoration-dotted cursor-help text-left">
+                            {label}
+                          </TooltipTrigger>
+                          <TooltipContent side="right" className="max-w-[260px]">
+                            <p className="text-xs">{detail}</p>
+                          </TooltipContent>
+                        </Tooltip>
+                      </td>
                       <td className="py-2 pr-4 text-xs text-muted-foreground">{desc}</td>
                       {holdout && (
                         <td className="py-2 pr-4 font-medium tabular-nums">

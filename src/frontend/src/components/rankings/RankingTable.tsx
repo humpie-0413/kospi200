@@ -10,7 +10,7 @@ import { Badge } from '@/components/ui/badge'
 import { Skeleton } from '@/components/ui/skeleton'
 import { CategoryBadge } from './CategoryBadge'
 import type { RankingItem } from '@/types/ranking'
-import { CATEGORY_KEYS, getRankLabel, rankToScore, generateSummary, getScoreColor } from '@/types/ranking'
+import { CATEGORY_KEYS, getRankLabel, getRankInterpretation, rankToScore, generateSummary, getScoreColor } from '@/types/ranking'
 import { cn } from '@/lib/utils'
 
 interface RankingTableProps {
@@ -86,6 +86,9 @@ export function RankingTable({ items, loading, onSelect }: RankingTableProps) {
                   <Badge className={cn('text-xs border-0', label.className)}>{label.text}</Badge>
                   <div className={cn('text-xs font-bold tabular-nums mt-0.5', getScoreColor(score))}>
                     {score}점
+                  </div>
+                  <div className={cn('text-[10px] mt-0.5', getRankInterpretation(item.rank_total).className)}>
+                    {getRankInterpretation(item.rank_total).text}
                   </div>
                 </TableCell>
                 <TableCell className="hidden lg:table-cell">

@@ -49,6 +49,10 @@ export const api = {
       request<{ close: number; prev_close: number; change: number; change_pct: number; volume: number }>(
         `/rankings/${ticker}/price`
       ),
+    freshness: () =>
+      request<{ ranking_long: { max_date: string | null }; ranking_short: { max_date: string | null } }>(
+        '/rankings/freshness'
+      ),
   },
 
   backtest: {
@@ -81,6 +85,21 @@ export const api = {
       request<{ ticker: string; name: string; horizon: string; analysis: string; provider: string }>(
         `/ai/analysis/${ticker}?horizon=${horizon}`
       ),
+  },
+
+  market: {
+    status: () =>
+      request<{
+        available: boolean
+        date?: string
+        vix_level?: number
+        vix_status?: string
+        market_regime?: string
+        regime_label?: string
+        regime_emoji?: string
+        sp500_ret_1d?: number
+        us10y_level?: number
+      }>('/market/status'),
   },
 
   admin: {

@@ -11,7 +11,7 @@ import logging
 
 from app.config import get_settings
 from app.database import engine, Base
-from app.routers import rankings, backtest, admin, auth, ai
+from app.routers import rankings, backtest, admin, auth, ai, market
 from app.services.scheduler import start_scheduler, stop_scheduler, check_and_run_if_needed
 
 logging.basicConfig(level=logging.INFO)
@@ -65,6 +65,7 @@ app.include_router(rankings.router, prefix="/api/rankings", tags=["rankings"])
 app.include_router(backtest.router, prefix="/api/backtest", tags=["backtest"])
 app.include_router(admin.router, prefix="/api/admin", tags=["admin"])
 app.include_router(ai.router, prefix="/api/ai", tags=["ai"])
+app.include_router(market.router, prefix="/api/market", tags=["market"])
 
 
 @app.get("/api/health")

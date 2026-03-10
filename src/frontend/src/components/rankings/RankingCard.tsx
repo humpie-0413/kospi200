@@ -2,7 +2,7 @@ import { Card, CardContent } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { CategoryBadge } from './CategoryBadge'
 import type { RankingItem } from '@/types/ranking'
-import { CATEGORY_KEYS, getRankLabel, rankToScore, generateSummary, getScoreColor } from '@/types/ranking'
+import { CATEGORY_KEYS, getRankLabel, getRankInterpretation, rankToScore, generateSummary, getScoreColor } from '@/types/ranking'
 import { cn } from '@/lib/utils'
 
 interface RankingCardProps {
@@ -43,6 +43,9 @@ export function RankingCard({ item, onSelect }: RankingCardProps) {
             <Badge className={cn('text-xs border-0', label.className)}>{label.text}</Badge>
             <div className={cn('text-sm font-bold tabular-nums mt-0.5', getScoreColor(score))}>
               {score}점
+            </div>
+            <div className={cn('text-[10px]', getRankInterpretation(item.rank_total).className)}>
+              {getRankInterpretation(item.rank_total).text}
             </div>
           </div>
         </div>

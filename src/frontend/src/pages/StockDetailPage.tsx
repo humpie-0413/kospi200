@@ -216,6 +216,9 @@ export function StockDetailPage() {
             <CardTitle className="text-sm font-medium text-muted-foreground">
               카테고리 레이더
             </CardTitle>
+            <p className="text-xs text-muted-foreground">
+              바깥쪽일수록 해당 영역이 강합니다. 균형 잡힌 모양이 이상적입니다.
+            </p>
           </CardHeader>
           <CardContent>
             <CategoryRadar item={item} />
@@ -233,8 +236,8 @@ export function StockDetailPage() {
         </Card>
       </div>
 
-      {/* AI 분석 리포트 */}
-      {ticker && <AiAnalysis ticker={ticker} name={item.name} horizon={horizon} />}
+      {/* AI 분석 리포트 (P1-5: 자동 로드) */}
+      {ticker && <AiAnalysis ticker={ticker} name={item.name} horizon={horizon} autoLoad />}
 
       {/* 타임라인 */}
       <Card>

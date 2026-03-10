@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { Sparkles, RefreshCw } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
@@ -11,9 +11,10 @@ interface AiAnalysisProps {
   ticker: string
   name: string
   horizon: Horizon
+  autoLoad?: boolean
 }
 
-export function AiAnalysis({ ticker, name, horizon }: AiAnalysisProps) {
+export function AiAnalysis({ ticker, name, horizon, autoLoad = false }: AiAnalysisProps) {
   const [analysis, setAnalysis] = useState<string | null>(null)
   const [provider, setProvider] = useState<string | null>(null)
   const [loading, setLoading] = useState(false)
@@ -33,6 +34,11 @@ export function AiAnalysis({ ticker, name, horizon }: AiAnalysisProps) {
       })
       .finally(() => setLoading(false))
   }
+
+  // P1-5: 자동 로드 (페이지 진입 시)
+  useEffect(() => {
+    if (autoLoad && !analysis && !loading) fetchAnalysis()
+  }, []) // eslint-disable-line react-hooks/exhaustive-deps
 
   // 아직 분석을 요청하지 않은 상태
   if (!analysis && !loading && !error) {

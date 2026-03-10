@@ -177,6 +177,14 @@ export function getScoreBarColor(score: number): string {
   return 'bg-rose-400'
 }
 
+// 순위 해석 텍스트 (P1-1)
+export function getRankInterpretation(rank: number): { text: string; className: string } {
+  if (rank <= 10) return { text: '상위 5%', className: 'text-sky-600 dark:text-sky-400' }
+  if (rank <= 50) return { text: '상위 25%', className: 'text-indigo-600 dark:text-indigo-400' }
+  if (rank <= 150) return { text: '중간', className: 'text-slate-500 dark:text-slate-400' }
+  return { text: '하위 25%', className: 'text-rose-500 dark:text-rose-400' }
+}
+
 // 순위 → 등급 라벨
 export function getRankLabel(rank: number): { text: string; className: string } {
   if (rank <= 10) return { text: '매우 좋음', className: 'text-sky-700 dark:text-sky-400 bg-sky-500/12' }
@@ -197,15 +205,19 @@ function particle(word: string, consonant: string, vowel: string): string {
   return (last - 0xAC00) % 28 !== 0 ? consonant : vowel
 }
 
-// 한줄 요약 생성
+// 한줄 요약 생성 (P1-3 강화: 점수+백분위 포함)
 export function generateSummary(item: RankingItem): string {
   const f1 = FEATURE_INFO[item.top_feature_1]
   const f2 = FEATURE_INFO[item.top_feature_2]
   if (!f1) return ''
   const c1 = CATEGORY_LABELS[f1.category]
+  const c1Score = Math.round((item[`cat_${f1.category}` as keyof RankingItem] as number) ?? 0)
   if (f2 && f2.category !== f1.category) {
     const c2 = CATEGORY_LABELS[f2.category]
-    return `${c1}${particle(c1, '과', '와')} ${c2}${particle(c2, '이', '가')} 강한 종목`
+    const c2Score = Math.round((item[`cat_${f2.category}` as keyof RankingItem] as number) ?? 0)
+    const topPct = Math.max(1, Math.round(100 - Math.max(c1Score, c2Score)))
+    return `${c1}(${c1Score})${particle(c1, '과', '와')} ${c2}(${c2Score})${particle(c2, '이', '가')} 강점 · 상위 ${topPct}%`
   }
-  return `${c1}${particle(c1, '이', '가')} 특히 강한 종목`
+  const topPct = Math.max(1, Math.round(100 - c1Score))
+  return `${c1}(${c1Score})${particle(c1, '이', '가')} 특히 강점 · 상위 ${topPct}%`
 }

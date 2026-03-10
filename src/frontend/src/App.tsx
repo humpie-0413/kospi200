@@ -7,6 +7,7 @@ import { StockDetailPage } from '@/pages/StockDetailPage'
 import { BacktestPage } from '@/pages/BacktestPage'
 import { AdminPage } from '@/pages/AdminPage'
 import { LoginPage } from '@/pages/LoginPage'
+import { GuidePage } from '@/pages/GuidePage'
 
 function App() {
   return (
@@ -18,6 +19,7 @@ function App() {
               <Route path="/" element={<RankingsPage />} />
               <Route path="/rankings/:ticker" element={<StockDetailPage />} />
               <Route path="/backtest" element={<BacktestPage />} />
+              <Route path="/guide" element={<GuidePage />} />
               <Route path="/admin" element={<AdminPage />} />
               <Route path="/login" element={<LoginPage />} />
             </Route>
