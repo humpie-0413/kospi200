@@ -122,7 +122,7 @@ export function EquityCurveChart({ strategy, phase }: EquityCurveChartProps) {
           <XAxis
             dataKey="date"
             tick={{ fontSize: 10, fill: 'var(--color-muted-foreground)' }}
-            tickFormatter={(v: string) => v.slice(5, 10)}
+            tickFormatter={(v: string) => v.slice(2, 10)}
             interval="preserveStartEnd"
           />
           <YAxis
@@ -174,7 +174,7 @@ export function EquityCurveChart({ strategy, phase }: EquityCurveChartProps) {
           <XAxis
             dataKey="date"
             tick={{ fontSize: 10, fill: 'var(--color-muted-foreground)' }}
-            tickFormatter={(v: string) => v.slice(5, 10)}
+            tickFormatter={(v: string) => v.slice(2, 10)}
             interval="preserveStartEnd"
           />
           <YAxis

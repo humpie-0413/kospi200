@@ -172,7 +172,7 @@ export function BacktestPage() {
           </CardTitle>
         </CardHeader>
         <CardContent>
-          <EquityCurveChart strategy={selected} phase={phase} />
+          <EquityCurveChart strategy={selected} />
         </CardContent>
       </Card>
 
