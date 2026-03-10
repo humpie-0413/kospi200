@@ -261,40 +261,45 @@ def rebuild_reasons(panel):
 
 # ─── P7: MySQL 리로드 ───
 def reload_mysql():
-    import subprocess, tempfile, os
+    import subprocess
 
     for side in ["long", "short"]:
         pq_file = CAL_DIR / f"ranking_{side}_daily_with_reasons.parquet"
         df = pd.read_parquet(pq_file)
         df["in_universe"] = df["in_universe"].astype(int)
-        # CSV 저장 (LOAD DATA 용)
-        csv_path = BACKUP / f"ranking_{side}.csv"
+
+        # NaN → 0.0 변환 (MySQL LOAD DATA 호환)
+        float_cols = df.select_dtypes(include=["float64", "float32"]).columns
+        df[float_cols] = df[float_cols].fillna(0.0)
+        str_cols = df.select_dtypes(include=["object"]).columns
+        df[str_cols] = df[str_cols].fillna("")
+
+        csv_path = BACKUP / f"ranking_{side}_mysql.csv"
         df.to_csv(csv_path, index=False, lineterminator="\r\n")
-        log.info(f"CSV: {csv_path} ({len(df):,} rows)")
+        log.info(f"CSV: {csv_path} ({len(df):,} rows, NaN fixed)")
+
+        dest = f"/var/lib/mysql-files/ranking_{side}.csv"
+        cmd_cp = f'docker cp "{csv_path}" kospi-mysql:{dest}'
+        subprocess.run(cmd_cp, shell=True, check=True, timeout=120)
 
         table = f"ranking_{side}_daily_with_reasons"
         cols = ",".join(df.columns)
-        sql = f"""
-SET GLOBAL local_infile = 1;
-TRUNCATE TABLE {table};
-LOAD DATA LOCAL INFILE '{csv_path.as_posix()}'
-INTO TABLE {table}
-FIELDS TERMINATED BY ',' OPTIONALLY ENCLOSED BY '"'
-LINES TERMINATED BY '\\r\\n'
-IGNORE 1 LINES
-({cols});
-SELECT COUNT(*) AS loaded FROM {table};
-"""
-        sql_file = BACKUP / f"_load_{side}.sql"
-        sql_file.write_text(sql, encoding="utf-8")
-        cmd = f'docker exec -i kospi-mysql mysql --local-infile=1 -uroot -p{DB_PASSWORD} kospi200 < "{sql_file.as_posix()}"'
+        sql = (
+            f"TRUNCATE TABLE {table}; "
+            f"LOAD DATA INFILE '{dest}' "
+            f"INTO TABLE {table} "
+            f"FIELDS TERMINATED BY ',' OPTIONALLY ENCLOSED BY '\\\"' "
+            f"LINES TERMINATED BY '\\r\\n' "
+            f"IGNORE 1 LINES ({cols}); "
+            f"SELECT COUNT(*) AS loaded FROM {table};"
+        )
+        cmd = f'docker exec -i kospi-mysql mysql -uroot -p{DB_PASSWORD} kospi200 -e "{sql}"'
         log.info(f"Loading {table}...")
         result = subprocess.run(cmd, shell=True, capture_output=True, text=True, timeout=300)
         if result.returncode != 0:
             log.error(f"MySQL error: {result.stderr}")
         else:
-            log.info(f"MySQL stdout: {result.stdout.strip()}")
-        sql_file.unlink(missing_ok=True)
+            log.info(f"MySQL loaded: {result.stdout.strip()}")
 
 
 def verify_mysql():

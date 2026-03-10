@@ -411,33 +411,42 @@ def step5_panel_and_reasons():
 # Step 6: MySQL 리로드
 # ═══════════════════════════════════════════════
 def step6_mysql():
-    """docker cp → LOAD DATA"""
+    """docker cp → LOAD DATA (NaN→0 변환 + secure_file_priv 경로 사용)"""
     for side in ["long", "short"]:
         pq_file = CAL_DIR / f"ranking_{side}_daily_with_reasons.parquet"
         df = pd.read_parquet(pq_file)
         df["in_universe"] = df["in_universe"].astype(int)
-        csv_path = BACKUP / f"ranking_{side}.csv"
-        df.to_csv(csv_path, index=False, lineterminator="\r\n")
 
-        cp_cmd = f'docker cp "{csv_path}" kospi-mysql:/tmp/ranking_{side}.csv'
+        # NaN → 0.0 변환 (MySQL LOAD DATA 호환)
+        float_cols = df.select_dtypes(include=["float64", "float32"]).columns
+        df[float_cols] = df[float_cols].fillna(0.0)
+        str_cols = df.select_dtypes(include=["object"]).columns
+        df[str_cols] = df[str_cols].fillna("")
+
+        csv_path = BACKUP / f"ranking_{side}_mysql.csv"
+        df.to_csv(csv_path, index=False, lineterminator="\r\n")
+        log.info(f"[Step6] CSV: {csv_path} ({len(df):,} rows, NaN fixed)")
+
+        dest = f"/var/lib/mysql-files/ranking_{side}.csv"
+        cp_cmd = f'docker cp "{csv_path}" kospi-mysql:{dest}'
         subprocess.run(cp_cmd, shell=True, check=True, timeout=120)
 
         cols = ",".join(df.columns)
         table = f"ranking_{side}_daily_with_reasons"
         sql = (
-            f"SET GLOBAL local_infile = 1; "
             f"TRUNCATE TABLE {table}; "
-            f"LOAD DATA LOCAL INFILE '/tmp/ranking_{side}.csv' "
+            f"LOAD DATA INFILE '{dest}' "
             f"INTO TABLE {table} "
             f"FIELDS TERMINATED BY ',' OPTIONALLY ENCLOSED BY '\\\"' "
             f"LINES TERMINATED BY '\\r\\n' "
             f"IGNORE 1 LINES ({cols}); "
             f"SELECT COUNT(*) AS loaded FROM {table};"
         )
-        load_cmd = f'docker exec -i kospi-mysql mysql --local-infile=1 -uroot -p{DB_PASSWORD} kospi200 -e "{sql}"'
+        load_cmd = f'docker exec -i kospi-mysql mysql -uroot -p{DB_PASSWORD} kospi200 -e "{sql}"'
         result = subprocess.run(load_cmd, shell=True, capture_output=True, text=True, timeout=300)
         if result.returncode != 0:
             log.error(f"[Step6] MySQL {side} error: {result.stderr}")
+            raise RuntimeError(f"MySQL load failed for {side}: {result.stderr}")
         else:
             log.info(f"[Step6] MySQL {side}: {result.stdout.strip()}")
 
