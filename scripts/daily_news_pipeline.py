@@ -450,6 +450,25 @@ def step6_mysql():
         else:
             log.info(f"[Step6] MySQL {side}: {result.stdout.strip()}")
 
+    # 최신 랭킹을 오늘 날짜로 복제 (6AM 파이프라인 → 당일 랭킹 표시)
+    today = datetime.now().date().isoformat()
+    for side in ["long", "short"]:
+        table = f"ranking_{side}_daily_with_reasons"
+        sql = (
+            f"CREATE TEMPORARY TABLE _tmp AS "
+            f"SELECT * FROM {table} WHERE date = (SELECT MAX(date) FROM {table}); "
+            f"UPDATE _tmp SET date = '{today}'; "
+            f"INSERT IGNORE INTO {table} SELECT * FROM _tmp; "
+            f"DROP TEMPORARY TABLE _tmp; "
+            f"SELECT MAX(date) AS latest FROM {table};"
+        )
+        cmd = f'docker exec -i kospi-mysql mysql -uroot -p{DB_PASSWORD} kospi200 -e "{sql}"'
+        result = subprocess.run(cmd, shell=True, capture_output=True, text=True, timeout=60)
+        if result.returncode != 0:
+            log.warning(f"[Step6] {side} today copy: {result.stderr.strip()}")
+        else:
+            log.info(f"[Step6] {side} → {today} 복제 완료 ({result.stdout.strip()})")
+
     log.info("[Step6] MySQL reload complete")
 
 
