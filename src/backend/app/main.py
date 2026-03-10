@@ -19,6 +19,9 @@ logger = logging.getLogger(__name__)
 
 settings = get_settings()
 
+if settings.jwt_secret == "change-me-in-production":
+    logger.warning("JWT_SECRET is using default value! Set JWT_SECRET in .env for production.")
+
 limiter = Limiter(key_func=get_remote_address, default_limits=[settings.rate_limit])
 
 FRONTEND_DIR = Path(__file__).resolve().parent.parent.parent / "frontend" / "dist"
@@ -47,13 +50,13 @@ app = FastAPI(
 app.state.limiter = limiter
 app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
 
-# CORS
+# CORS (환경변수 ALLOWED_ORIGINS로 설정 가능)
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:5173", "http://localhost:8000"],
+    allow_origins=settings.cors_origins,
     allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
+    allow_methods=["GET", "POST", "PUT", "DELETE"],
+    allow_headers=["Authorization", "Content-Type"],
 )
 
 # API Routers

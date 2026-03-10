@@ -37,8 +37,15 @@ class Settings(BaseSettings):
     naver_client_id: str = ""
     naver_client_secret: str = ""
 
+    # CORS
+    allowed_origins: str = "http://localhost:5173,http://localhost:8000"
+
     # Rate Limiting
     rate_limit: str = "60/minute"
+
+    @property
+    def cors_origins(self) -> list[str]:
+        return [o.strip() for o in self.allowed_origins.split(",") if o.strip()]
 
     @property
     def database_url(self) -> str:

@@ -23,14 +23,18 @@ export function usePipeline() {
     try {
       const l = await api.admin.pipelineLogs(10)
       setLogs(l)
-    } catch {}
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'Failed to fetch logs')
+    }
   }, [])
 
   const fetchFreshness = useCallback(async () => {
     try {
       const f = await api.admin.freshness()
       setFreshness(f)
-    } catch {}
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'Failed to fetch freshness')
+    }
   }, [])
 
   // 파이프라인 실행 중이면 3초마다 폴링
