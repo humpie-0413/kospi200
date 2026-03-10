@@ -5,6 +5,7 @@ import { RankingTable } from '@/components/rankings/RankingTable'
 import { RankingCard } from '@/components/rankings/RankingCard'
 import { Pagination } from '@/components/rankings/Pagination'
 import { TickerDetail } from '@/components/rankings/TickerDetail'
+import { TopThreeSection } from '@/components/rankings/TopThreeSection'
 import type { RankingItem } from '@/types/ranking'
 
 export function RankingsPage() {
@@ -20,6 +21,7 @@ export function RankingsPage() {
     page,
     setPage,
     totalPages,
+    top3,
   } = useRankings()
 
   const [search, setSearch] = useState('')
@@ -51,6 +53,11 @@ export function RankingsPage() {
           KOSPI200 {data?.total ?? '—'}종목 &middot; {selectedDate || '—'}
         </p>
       </div>
+
+      {/* TOP 3 하이라이트 */}
+      {!loading && top3.length > 0 && (
+        <TopThreeSection items={top3} horizon={horizon} />
+      )}
 
       {/* 필터 */}
       <FilterPanel

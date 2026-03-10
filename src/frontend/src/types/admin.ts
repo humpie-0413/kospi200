@@ -11,7 +11,10 @@ export interface FreshnessResponse {
 export interface PipelineStep {
   index: number
   name: string
-  status: 'pending' | 'running' | 'completed' | 'failed'
+  status: 'pending' | 'running' | 'completed' | 'failed' | 'skipped'
+  started_at: string | null
+  finished_at: string | null
+  elapsed_seconds: number | null
 }
 
 export interface PipelineStatus {

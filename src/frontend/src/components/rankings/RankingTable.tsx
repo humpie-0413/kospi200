@@ -8,8 +8,9 @@ import {
 } from '@/components/ui/table'
 import { Badge } from '@/components/ui/badge'
 import { Skeleton } from '@/components/ui/skeleton'
-import { FeatureTag } from './FeatureTag'
+import { CategoryBadge } from './CategoryBadge'
 import type { RankingItem } from '@/types/ranking'
+import { CATEGORY_KEYS, getRankLabel, rankToScore, generateSummary, getScoreColor } from '@/types/ranking'
 import { cn } from '@/lib/utils'
 
 interface RankingTableProps {
@@ -33,27 +34,12 @@ function RankBadge({ rank }: { rank: number }) {
   )
 }
 
-function ScoreCell({ score }: { score: number }) {
-  return (
-    <span
-      className={cn(
-        'tabular-nums font-medium',
-        score > 0 && 'text-positive',
-        score < 0 && 'text-negative',
-        score === 0 && 'text-neutral',
-      )}
-    >
-      {score.toFixed(4)}
-    </span>
-  )
-}
-
 export function RankingTable({ items, loading, onSelect }: RankingTableProps) {
   if (loading) {
     return (
       <div className="space-y-3">
         {Array.from({ length: 10 }).map((_, i) => (
-          <Skeleton key={i} className="h-12 w-full" />
+          <Skeleton key={i} className="h-14 w-full" />
         ))}
       </div>
     )
@@ -73,38 +59,54 @@ export function RankingTable({ items, loading, onSelect }: RankingTableProps) {
         <TableHeader>
           <TableRow className="hover:bg-transparent">
             <TableHead className="w-16 text-center">순위</TableHead>
-            <TableHead className="w-20">티커</TableHead>
-            <TableHead>종목명</TableHead>
-            <TableHead className="w-24 text-right">점수</TableHead>
-            <TableHead className="hidden md:table-cell">TOP3 피처</TableHead>
+            <TableHead>종목</TableHead>
+            <TableHead className="w-24 text-center">AI 등급</TableHead>
+            <TableHead className="hidden lg:table-cell">카테고리</TableHead>
+            <TableHead className="hidden md:table-cell w-44">한줄 요약</TableHead>
           </TableRow>
         </TableHeader>
         <TableBody>
-          {items.map((item) => (
-            <TableRow
-              key={item.ticker}
-              className="cursor-pointer"
-              onClick={() => onSelect(item)}
-            >
-              <TableCell className="text-center">
-                <RankBadge rank={item.rank_total} />
-              </TableCell>
-              <TableCell className="font-mono text-xs text-muted-foreground">
-                {item.ticker}
-              </TableCell>
-              <TableCell className="font-medium">{item.name}</TableCell>
-              <TableCell className="text-right">
-                <ScoreCell score={item.score_total} />
-              </TableCell>
-              <TableCell className="hidden md:table-cell">
-                <div className="flex flex-wrap gap-1">
-                  <FeatureTag feature={item.top_feature_1} percentile={item.percentile_1} />
-                  <FeatureTag feature={item.top_feature_2} percentile={item.percentile_2} />
-                  <FeatureTag feature={item.top_feature_3} percentile={item.percentile_3} />
-                </div>
-              </TableCell>
-            </TableRow>
-          ))}
+          {items.map((item) => {
+            const label = getRankLabel(item.rank_total)
+            const score = rankToScore(item.rank_total)
+            return (
+              <TableRow
+                key={item.ticker}
+                className="cursor-pointer"
+                onClick={() => onSelect(item)}
+              >
+                <TableCell className="text-center">
+                  <RankBadge rank={item.rank_total} />
+                </TableCell>
+                <TableCell>
+                  <div className="font-medium">{item.name}</div>
+                  <div className="text-xs text-muted-foreground font-mono">{item.ticker}</div>
+                </TableCell>
+                <TableCell className="text-center">
+                  <Badge className={cn('text-xs border-0', label.className)}>{label.text}</Badge>
+                  <div className={cn('text-xs font-bold tabular-nums mt-0.5', getScoreColor(score))}>
+                    {score}점
+                  </div>
+                </TableCell>
+                <TableCell className="hidden lg:table-cell">
+                  <div className="flex flex-wrap gap-1">
+                    {CATEGORY_KEYS.map((key) => (
+                      <CategoryBadge
+                        key={key}
+                        catKey={key}
+                        score={item[`cat_${key}` as keyof RankingItem] as number}
+                      />
+                    ))}
+                  </div>
+                </TableCell>
+                <TableCell className="hidden md:table-cell">
+                  <span className="text-xs text-muted-foreground italic">
+                    {generateSummary(item)}
+                  </span>
+                </TableCell>
+              </TableRow>
+            )
+          })}
         </TableBody>
       </Table>
     </div>

@@ -13,6 +13,8 @@ import { CategoryBars } from './CategoryBars'
 import { ScoreTimeline } from './ScoreTimeline'
 import { FeatureTag } from './FeatureTag'
 import type { RankingItem, Horizon } from '@/types/ranking'
+import { getRankLabel, rankToScore, getScoreColor, generateSummary } from '@/types/ranking'
+import { cn } from '@/lib/utils'
 
 interface TickerDetailProps {
   item: RankingItem | null
@@ -30,6 +32,10 @@ export function TickerDetail({ item, open, onOpenChange, horizon }: TickerDetail
     onOpenChange(false)
     navigate(`/rankings/${item.ticker}`, { state: { item, horizon } })
   }
+
+  const label = getRankLabel(item.rank_total)
+  const score = rankToScore(item.rank_total)
+  const summary = generateSummary(item)
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -58,11 +64,17 @@ export function TickerDetail({ item, open, onOpenChange, horizon }: TickerDetail
         </DialogHeader>
 
         <div className="space-y-6 pt-2">
-          {/* 점수 + TOP3 */}
-          <div className="flex flex-wrap items-center gap-3">
-            <span className="text-2xl font-bold tabular-nums">
-              {item.score_total.toFixed(4)}
-            </span>
+          {/* 점수 + 등급 + TOP3 */}
+          <div className="space-y-2">
+            <div className="flex items-center gap-3">
+              <span className={cn('text-2xl font-bold tabular-nums', getScoreColor(score))}>
+                {score}점
+              </span>
+              <Badge className={cn('text-sm border-0', label.className)}>{label.text}</Badge>
+            </div>
+            {summary && (
+              <p className="text-sm text-muted-foreground italic">"{summary}"</p>
+            )}
             <div className="flex flex-wrap gap-1.5">
               <FeatureTag feature={item.top_feature_1} percentile={item.percentile_1} />
               <FeatureTag feature={item.top_feature_2} percentile={item.percentile_2} />

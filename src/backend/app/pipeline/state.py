@@ -1,6 +1,6 @@
 import threading
 from datetime import datetime, timezone
-from typing import Optional
+from typing import Optional, List
 
 STEP_NAMES = [
     "유니버스 멤버십 확장",
@@ -29,6 +29,8 @@ class PipelineState:
         self.current_step: int = -1
         self.total_steps: int = len(STEP_NAMES)
         self.step_statuses: list = []
+        self.step_started_at: List[Optional[datetime]] = []
+        self.step_finished_at: List[Optional[datetime]] = []
 
     def acquire(self, action: str) -> bool:
         with self._lock:
@@ -39,6 +41,8 @@ class PipelineState:
             self.started_at = datetime.now(timezone.utc)
             self.current_step = -1
             self.step_statuses = ["pending"] * self.total_steps
+            self.step_started_at = [None] * self.total_steps
+            self.step_finished_at = [None] * self.total_steps
             return True
 
     def release(self, status: str, message: str = ""):
@@ -54,11 +58,42 @@ class PipelineState:
         """Update step progress (called from pipeline thread)"""
         with self._lock:
             if 0 <= step < self.total_steps:
+                now = datetime.now(timezone.utc)
+                # Normalize status from pipeline ("done" → "completed", "skip" → "skipped")
+                if status == "done":
+                    status = "completed"
+                elif status == "skip":
+                    status = "skipped"
                 self.step_statuses[step] = status
                 if status == "running":
                     self.current_step = step
+                    self.step_started_at[step] = now
+                    # Auto-complete previous running step
+                    if step > 0 and self.step_statuses[step - 1] == "running":
+                        self.step_statuses[step - 1] = "completed"
+                        self.step_finished_at[step - 1] = now
+                elif status in ("completed", "skipped", "failed"):
+                    self.step_finished_at[step] = now
 
     def to_dict(self) -> dict:
+        now = datetime.now(timezone.utc)
+        steps = []
+        for i in range(self.total_steps):
+            status = self.step_statuses[i] if i < len(self.step_statuses) else "pending"
+            started = self.step_started_at[i] if i < len(self.step_started_at) else None
+            finished = self.step_finished_at[i] if i < len(self.step_finished_at) else None
+            elapsed = None
+            if started:
+                end = finished or (now if status == "running" else started)
+                elapsed = round((end - started).total_seconds(), 1)
+            steps.append({
+                "index": i,
+                "name": STEP_NAMES[i],
+                "status": status,
+                "started_at": started.isoformat() if started else None,
+                "finished_at": finished.isoformat() if finished else None,
+                "elapsed_seconds": elapsed,
+            })
         return {
             "is_running": self.is_running,
             "current_action": self.current_action,
@@ -68,10 +103,7 @@ class PipelineState:
             "last_message": self.last_message,
             "current_step": self.current_step,
             "total_steps": self.total_steps,
-            "steps": [
-                {"index": i, "name": STEP_NAMES[i], "status": self.step_statuses[i] if i < len(self.step_statuses) else "pending"}
-                for i in range(self.total_steps)
-            ],
+            "steps": steps,
         }
 
 

@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useState, useRef } from 'react'
 import { useParams, useLocation, Link } from 'react-router-dom'
 import { ArrowLeft } from 'lucide-react'
 import { Badge } from '@/components/ui/badge'
@@ -10,8 +10,11 @@ import { CategoryRadar } from '@/components/rankings/CategoryRadar'
 import { CategoryBars } from '@/components/rankings/CategoryBars'
 import { ScoreTimeline } from '@/components/rankings/ScoreTimeline'
 import { FeatureTag } from '@/components/rankings/FeatureTag'
+import { AiAnalysis } from '@/components/rankings/AiAnalysis'
 import { api } from '@/lib/api'
 import type { RankingItem, Horizon } from '@/types/ranking'
+import { getRankLabel, rankToScore, getScoreColor, generateSummary } from '@/types/ranking'
+import { cn } from '@/lib/utils'
 
 interface LocationState {
   item?: RankingItem
@@ -27,19 +30,26 @@ export function StockDetailPage() {
   const [horizon, setHorizon] = useState<Horizon>(state?.horizon ?? 'long_term')
   const [loading, setLoading] = useState(!state?.item)
 
-  // state 없이 직접 URL 접근 시 API에서 로드
+  // 첫 렌더에서 state가 있으면 API 호출 건너뛰기
+  const skipInitialFetch = useRef(!!state?.item)
+
   useEffect(() => {
-    if (item || !ticker) return
+    if (!ticker) return
+    if (skipInitialFetch.current) {
+      skipInitialFetch.current = false
+      return
+    }
     setLoading(true)
     const strategy = horizon === 'long_term' ? 'long' : 'short'
     api.rankings
       .history({ strategy, ticker, page_size: 1 })
       .then((res) => {
         if (res.items.length > 0) setItem(res.items[0])
+        else setItem(null)
       })
       .catch(() => {})
       .finally(() => setLoading(false))
-  }, [ticker, item, horizon])
+  }, [ticker, horizon])
 
   if (loading) {
     return (
@@ -98,18 +108,24 @@ export function StockDetailPage() {
         </TabsList>
       </Tabs>
 
-      {/* 점수 + TOP3 */}
+      {/* 점수 + 등급 + TOP3 */}
       <Card>
-        <CardContent className="pt-4">
-          <div className="flex flex-wrap items-center gap-3">
-            <span className="text-3xl font-bold tabular-nums">
-              {item.score_total.toFixed(4)}
+        <CardContent className="pt-4 space-y-3">
+          <div className="flex items-center gap-3">
+            <span className={cn('text-3xl font-bold tabular-nums', getScoreColor(rankToScore(item.rank_total)))}>
+              {rankToScore(item.rank_total)}점
             </span>
-            <div className="flex flex-wrap gap-1.5">
-              <FeatureTag feature={item.top_feature_1} percentile={item.percentile_1} />
-              <FeatureTag feature={item.top_feature_2} percentile={item.percentile_2} />
-              <FeatureTag feature={item.top_feature_3} percentile={item.percentile_3} />
-            </div>
+            <Badge className={cn('text-sm border-0', getRankLabel(item.rank_total).className)}>
+              {getRankLabel(item.rank_total).text}
+            </Badge>
+          </div>
+          {generateSummary(item) && (
+            <p className="text-sm text-muted-foreground italic">"{generateSummary(item)}"</p>
+          )}
+          <div className="flex flex-wrap gap-1.5">
+            <FeatureTag feature={item.top_feature_1} percentile={item.percentile_1} />
+            <FeatureTag feature={item.top_feature_2} percentile={item.percentile_2} />
+            <FeatureTag feature={item.top_feature_3} percentile={item.percentile_3} />
           </div>
         </CardContent>
       </Card>
@@ -137,6 +153,9 @@ export function StockDetailPage() {
           </CardContent>
         </Card>
       </div>
+
+      {/* AI 분석 리포트 */}
+      {ticker && <AiAnalysis ticker={ticker} name={item.name} horizon={horizon} />}
 
       {/* 타임라인 */}
       <Card>

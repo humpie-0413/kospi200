@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from 'react'
 import { api } from '@/lib/api'
-import type { RankingsResponse, Horizon } from '@/types/ranking'
+import type { RankingsResponse, RankingItem, Horizon } from '@/types/ranking'
 
 export function useRankings() {
   const [data, setData] = useState<RankingsResponse | null>(null)
@@ -12,6 +12,7 @@ export function useRankings() {
   const [horizon, setHorizon] = useState<Horizon>('long_term')
   const [page, setPage] = useState(1)
   const [pageSize] = useState(20)
+  const [top3, setTop3] = useState<RankingItem[]>([])
 
   // 날짜 목록 로드
   useEffect(() => {
@@ -33,6 +34,7 @@ export function useRankings() {
         page_size: pageSize,
       })
       setData(res)
+      if (page === 1) setTop3(res.items.slice(0, 3))
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Failed to fetch')
     } finally {
@@ -58,5 +60,6 @@ export function useRankings() {
     page,
     setPage,
     totalPages,
+    top3,
   }
 }

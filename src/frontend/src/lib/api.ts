@@ -72,6 +72,13 @@ export const api = {
       }),
   },
 
+  ai: {
+    analysis: (ticker: string, horizon = 'long_term') =>
+      request<{ ticker: string; name: string; horizon: string; analysis: string; provider: string }>(
+        `/ai/analysis/${ticker}?horizon=${horizon}`
+      ),
+  },
+
   admin: {
     freshness: () =>
       request<FreshnessResponse>('/admin/freshness'),

@@ -43,6 +43,10 @@ class Settings(BaseSettings):
     # Rate Limiting
     rate_limit: str = "60/minute"
 
+    # AI Analysis APIs
+    gemini_api_key: str = ""
+    groq_api_key: str = ""
+
     @property
     def cors_origins(self) -> list[str]:
         return [o.strip() for o in self.allowed_origins.split(",") if o.strip()]
