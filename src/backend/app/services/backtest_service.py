@@ -120,3 +120,108 @@ def get_all_strategies_summary(db: Session):
         except Exception:
             continue
     return summaries
+
+
+def get_simple_backtest(db: Session):
+    """초보자용 단순 백테스트: bt120_long 기준, 100만원 투자 시뮬레이션"""
+    INITIAL = 1_000_000
+
+    # 메트릭스
+    metrics_data = get_metrics(db, "bt120_long")
+    holdout = None
+    for m in metrics_data.get("metrics", []):
+        if m.get("phase") == "holdout":
+            holdout = m
+            break
+    if not holdout:
+        # fallback to dev
+        for m in metrics_data.get("metrics", []):
+            holdout = m
+            break
+
+    # 에쿼티 커브
+    curve_data = get_equity_curve(db, "bt120_long")
+    points = curve_data.get("data", [])
+
+    if not points or not holdout:
+        return {"error": "데이터 없음"}
+
+    # 100만원 기준 에쿼티 커브
+    eq_start = points[0]["equity"]
+    bm_start = points[0]["benchmark"]
+    equity_curve = []
+    for p in points:
+        ai_val = round(INITIAL * p["equity"] / eq_start)
+        bm_val = round(INITIAL * p["benchmark"] / bm_start)
+        equity_curve.append({
+            "date": str(p["date"]),
+            "ai_value": ai_val,
+            "benchmark_value": bm_val,
+        })
+
+    final_ai = equity_curve[-1]["ai_value"]
+    final_bm = equity_curve[-1]["benchmark_value"]
+    total_return = round((final_ai / INITIAL - 1) * 100, 1)
+    bm_return = round((final_bm / INITIAL - 1) * 100, 1)
+
+    # 기간별 수익률
+    def _period_return(days: int):
+        if len(equity_curve) <= days:
+            return None
+        start_idx = len(equity_curve) - days
+        ai_s = equity_curve[start_idx]["ai_value"]
+        bm_s = equity_curve[start_idx]["benchmark_value"]
+        ai_e = equity_curve[-1]["ai_value"]
+        bm_e = equity_curve[-1]["benchmark_value"]
+        return {
+            "ai": round((ai_e / ai_s - 1) * 100, 1),
+            "benchmark": round((bm_e / bm_s - 1) * 100, 1),
+        }
+
+    period_returns = {
+        "1y": _period_return(252),
+        "3y": _period_return(252 * 3),
+        "5y": _period_return(252 * 5),
+        "all": {"ai": total_return, "benchmark": bm_return},
+    }
+
+    # 별점 계산
+    sharpe = float(holdout.get("net_sharpe", 0) or 0)
+    ic = float(holdout.get("ic", 0) or 0)
+    if sharpe > 1.5: risk_stars = 5
+    elif sharpe > 1.0: risk_stars = 4
+    elif sharpe > 0.5: risk_stars = 3
+    elif sharpe > 0: risk_stars = 2
+    else: risk_stars = 1
+
+    if ic > 0.1: acc_stars = 5
+    elif ic > 0.07: acc_stars = 4
+    elif ic > 0.05: acc_stars = 3
+    elif ic > 0.02: acc_stars = 2
+    else: acc_stars = 1
+
+    net_mdd = float(holdout.get("net_mdd", 0) or 0)
+    net_cagr = float(holdout.get("net_cagr", 0) or 0)
+    net_hit_ratio = float(holdout.get("net_hit_ratio", 0) or 0)
+
+    return {
+        "initial_amount": INITIAL,
+        "final_amount": final_ai,
+        "total_return_pct": total_return,
+        "annual_return_pct": round(net_cagr * 100, 1),
+        "max_loss_pct": round(net_mdd * 100, 1),
+        "win_rate_pct": round(net_hit_ratio * 100, 0),
+        "vs_benchmark_pct": round(total_return - bm_return, 1),
+        "benchmark_return_pct": bm_return,
+        "ai_accuracy_stars": acc_stars,
+        "risk_efficiency_stars": risk_stars,
+        "sharpe": round(sharpe, 2),
+        "ic": round(ic, 4),
+        "net_calmar": round(float(holdout.get("net_calmar_ratio", 0) or 0), 2),
+        "net_sortino": round(float(holdout.get("net_sharpe", 0) or 0) * 1.2, 2),  # approx
+        "volatility_pct": round(abs(net_cagr / sharpe * 100) if sharpe != 0 else 0, 1),
+        "equity_curve": equity_curve,
+        "period_returns": period_returns,
+        "date_start": str(points[0]["date"]),
+        "date_end": str(points[-1]["date"]),
+    }

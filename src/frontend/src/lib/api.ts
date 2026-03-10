@@ -1,5 +1,5 @@
 import type { RankingsResponse, TimelineResponse, RankingItem } from '@/types/ranking'
-import type { MetricsResponse, EquityCurveResponse, StrategySummary } from '@/types/backtest'
+import type { MetricsResponse, EquityCurveResponse, StrategySummary, SimpleBacktestData } from '@/types/backtest'
 import type { FreshnessResponse, PipelineStatus, PipelineLogEntry, PipelineAction } from '@/types/admin'
 import type { TokenResponse } from '@/types/auth'
 
@@ -63,6 +63,8 @@ export const api = {
       if (phase) sp.set('phase', phase)
       return request<EquityCurveResponse>(`/backtest/equity-curve?${sp}`)
     },
+    simple: () =>
+      request<SimpleBacktestData>('/backtest/simple'),
     summary: () =>
       request<StrategySummary[]>('/backtest/summary'),
   },

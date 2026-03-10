@@ -75,3 +75,25 @@ export const STRATEGY_DESCRIPTIONS: Record<string, string> = {
 
 export const VALID_STRATEGIES = ['bt120_long', 'bt120_ens', 'bt20_short', 'bt20_ens'] as const
 export type Strategy = (typeof VALID_STRATEGIES)[number]
+
+export interface SimpleBacktestData {
+  initial_amount: number
+  final_amount: number
+  total_return_pct: number
+  annual_return_pct: number
+  max_loss_pct: number
+  win_rate_pct: number
+  vs_benchmark_pct: number
+  benchmark_return_pct: number
+  ai_accuracy_stars: number
+  risk_efficiency_stars: number
+  sharpe: number
+  ic: number
+  net_calmar: number
+  net_sortino: number
+  volatility_pct: number
+  equity_curve: { date: string; ai_value: number; benchmark_value: number }[]
+  period_returns: Record<string, { ai: number; benchmark: number } | null>
+  date_start: string
+  date_end: string
+}

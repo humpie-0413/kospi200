@@ -34,6 +34,12 @@ def get_equity_curve(
         raise HTTPException(status_code=400, detail=str(e))
 
 
+@router.get("/simple")
+def get_simple_backtest(db: Session = Depends(get_db)):
+    """초보자용 단순 백테스트 (bt120_long, 100만원 시뮬레이션)"""
+    return backtest_service.get_simple_backtest(db)
+
+
 @router.get("/summary")
 def get_strategies_summary(db: Session = Depends(get_db)):
     """전체 전략 요약 (holdout 성과)"""
