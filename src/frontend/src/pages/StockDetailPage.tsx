@@ -103,8 +103,8 @@ export function StockDetailPage() {
       {/* 호라이즌 탭 */}
       <Tabs value={horizon} onValueChange={(v) => setHorizon(v as Horizon)}>
         <TabsList>
-          <TabsTrigger value="long_term">장기 120일</TabsTrigger>
           <TabsTrigger value="short_term">단기 20일</TabsTrigger>
+          <TabsTrigger value="long_term">장기 120일</TabsTrigger>
         </TabsList>
       </Tabs>
 

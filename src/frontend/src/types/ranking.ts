@@ -125,31 +125,31 @@ export const FEATURE_INFO: Record<string, { label: string; category: CategoryKey
   esg_gov: { label: '지배구조(G)', category: 'esg' },
 }
 
-// 점수 기반 색상 (70+ 초록, 40~69 노랑, 0~39 빨강)
+// 점수 기반 색상 (눈 편한 톤: sky / slate / rose)
 export function getScoreColor(score: number): string {
-  if (score >= 70) return 'text-green-600 dark:text-green-400'
-  if (score >= 40) return 'text-amber-600 dark:text-amber-400'
-  return 'text-red-600 dark:text-red-400'
+  if (score >= 70) return 'text-sky-600 dark:text-sky-400'
+  if (score >= 40) return 'text-slate-500 dark:text-slate-400'
+  return 'text-rose-500 dark:text-rose-400'
 }
 
 export function getScoreBg(score: number): string {
-  if (score >= 70) return 'bg-green-500/15'
-  if (score >= 40) return 'bg-amber-500/15'
-  return 'bg-red-500/15'
+  if (score >= 70) return 'bg-sky-500/12'
+  if (score >= 40) return 'bg-slate-500/10'
+  return 'bg-rose-500/12'
 }
 
 export function getScoreBarColor(score: number): string {
-  if (score >= 70) return 'bg-green-500'
-  if (score >= 40) return 'bg-amber-500'
-  return 'bg-red-500'
+  if (score >= 70) return 'bg-sky-500'
+  if (score >= 40) return 'bg-slate-400'
+  return 'bg-rose-400'
 }
 
 // 순위 → 등급 라벨
 export function getRankLabel(rank: number): { text: string; className: string } {
-  if (rank <= 10) return { text: '매우 좋음', className: 'text-green-700 dark:text-green-400 bg-green-500/15' }
-  if (rank <= 50) return { text: '좋음', className: 'text-blue-700 dark:text-blue-400 bg-blue-500/15' }
-  if (rank <= 150) return { text: '보통', className: 'text-amber-700 dark:text-amber-400 bg-amber-500/15' }
-  return { text: '나쁨', className: 'text-red-700 dark:text-red-400 bg-red-500/15' }
+  if (rank <= 10) return { text: '매우 좋음', className: 'text-sky-700 dark:text-sky-400 bg-sky-500/12' }
+  if (rank <= 50) return { text: '좋음', className: 'text-indigo-600 dark:text-indigo-400 bg-indigo-500/12' }
+  if (rank <= 150) return { text: '보통', className: 'text-slate-600 dark:text-slate-400 bg-slate-500/10' }
+  return { text: '나쁨', className: 'text-rose-500 dark:text-rose-400 bg-rose-500/12' }
 }
 
 // 순위 → 100점 만점 점수

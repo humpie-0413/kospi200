@@ -22,7 +22,7 @@ export function CategoryRadar({ item, height = 260 }: CategoryRadarProps) {
 
   return (
     <ResponsiveContainer width="100%" height={height}>
-      <RadarChart data={data}>
+      <RadarChart data={data} outerRadius="68%">
         <PolarGrid stroke="var(--color-border)" />
         <PolarAngleAxis
           dataKey="category"

@@ -29,8 +29,8 @@ export function FilterPanel({
         <DateSelector dates={dates} value={selectedDate} onChange={onDateChange} />
         <Tabs value={horizon} onValueChange={(v) => onHorizonChange(v as Horizon)}>
           <TabsList>
-            <TabsTrigger value="long_term">장기 120일</TabsTrigger>
             <TabsTrigger value="short_term">단기 20일</TabsTrigger>
+            <TabsTrigger value="long_term">장기 120일</TabsTrigger>
           </TabsList>
         </Tabs>
       </div>

@@ -84,11 +84,11 @@ export function TickerDetail({ item, open, onOpenChange, horizon }: TickerDetail
 
           {/* 레이더 + 바 */}
           <div className="grid gap-6 sm:grid-cols-2">
-            <div>
+            <div className="min-w-0">
               <h4 className="mb-2 text-sm font-medium text-muted-foreground">
                 카테고리 레이더
               </h4>
-              <CategoryRadar item={item} />
+              <CategoryRadar item={item} height={220} />
             </div>
             <div>
               <h4 className="mb-2 text-sm font-medium text-muted-foreground">
