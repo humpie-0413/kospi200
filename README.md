@@ -37,7 +37,7 @@ MySQL → FastAPI (18 API) → React SPA (6페이지)
 | DB | MySQL 8 (Docker) |
 | 외부 API | 네이버 검색, DART, FMP, Gemini/Groq |
 
-## 설치 방법
+## 설치 방법 (GitHub + Google Drive)
 
 ### 사전 요구사항
 - Python 3.11+
@@ -45,57 +45,78 @@ MySQL → FastAPI (18 API) → React SPA (6페이지)
 - Docker (MySQL용)
 - Git
 
-### 1. 클론
+### 1. 클론 + 의존성
 
 ```bash
 git clone https://github.com/humpie-0413/kospi200.git
 cd kospi200
+pip install -r requirements.txt
 ```
 
-### 2. MySQL
-
-```bash
-docker run -d --name kospi-mysql \
-  -e MYSQL_ROOT_PASSWORD=<비밀번호> \
-  -e MYSQL_DATABASE=kospi200 \
-  -p 3306:3306 mysql:8.0 --local-infile=1
-```
-
-### 3. 환경변수
+### 2. 환경변수
 
 ```bash
 cp .env.example src/backend/.env
-# .env 파일을 열고 실제 API 키 입력
+# src/backend/.env 열어서 DB_PASSWORD, API 키 등 실제 값 입력
 ```
 
-### 4. 백엔드
+### 3. Docker MySQL 시작
 
 ```bash
-cd src/backend
-pip install -r requirements.txt
-uvicorn app.main:app --port 8000
+docker-compose up -d
+# 또는 직접:
+# docker run -d --name kospi-mysql \
+#   -e MYSQL_ROOT_PASSWORD=<비밀번호> \
+#   -e MYSQL_DATABASE=kospi200 \
+#   -p 3306:3306 mysql:8.0 --local-infile=1
 ```
 
-### 5. 프론트엔드
+### 4. 데이터 다운로드 (Google Drive)
+
+```bash
+python scripts/setup_data.py
+# Google Drive에서 2개 zip 자동 다운로드 + 압축 해제
+
+# 파일 확인만:
+python scripts/setup_data.py --verify-only
+```
+
+### 5. MySQL 데이터 로드
+
+```bash
+python scripts/init_mysql.py
+# 15개 테이블 생성 + 데이터 적재 + 행수 검증
+```
+
+### 6. 프론트엔드 빌드
 
 ```bash
 cd src/frontend
 npm install
-npm run build    # 프로덕션 (dist/ → FastAPI가 서빙)
-npm run dev      # 개발 (localhost:5173)
+npm run build    # dist/ → FastAPI가 서빙
 ```
 
-### 6. 관리자 계정
+### 7. 서버 실행
+
+```bash
+cd src/backend
+uvicorn app.main:app --port 8000
+# 브라우저: http://localhost:8000
+```
+
+### 8. 관리자 계정 (선택)
 
 ```bash
 cd src/backend
 python seed_admin.py admin <비밀번호>
 ```
 
-### 7. 파이프라인 실행
+### 9. 일일 갱신 (선택)
 
 ```bash
-python scripts/daily_news_pipeline.py
+python scripts/daily_update.py              # 전체 파이프라인
+python scripts/daily_update.py --ohlcv-only  # OHLCV만 갱신
+python scripts/daily_update.py --date 2026-03-20  # 특정 날짜
 ```
 
 매일 06:00 KST 자동 실행 (`SCHEDULER_ENABLED=true`).
@@ -209,38 +230,42 @@ kospi200/
 ```bash
 # 1. 사전 준비: Docker, Python 3.11+, Node.js 18+
 
-# 2. MySQL 컨테이너 시작 (최초 1회)
-docker run -d --name kospi-mysql \
-  -e MYSQL_ROOT_PASSWORD=<비밀번호> \
-  -e MYSQL_DATABASE=kospi200 \
-  -p 3306:3306 mysql:8.0 --local-infile=1
-
-# 3. 환경변수 설정
-cp .env.example src/backend/.env
-# src/backend/.env 열어서 DB_PASSWORD, API 키 등 실제 값 입력
-
-# 4. 백엔드 실행
-cd src/backend
+# 2. 클론 + 의존성
+git clone https://github.com/humpie-0413/kospi200.git
+cd kospi200
 pip install -r requirements.txt
-uvicorn app.main:app --port 8000
 
-# 5. 프론트엔드 빌드 (별도 터미널)
-cd src/frontend
-npm install
-npm run build   # → dist/ 생성, FastAPI가 자동 서빙
+# 3. 환경변수
+cp .env.example src/backend/.env
+# src/backend/.env 열어서 DB_PASSWORD 등 입력
 
-# 6. 브라우저에서 http://localhost:8000 접속
+# 4. MySQL + 데이터
+docker-compose up -d
+python scripts/setup_data.py
+python scripts/init_mysql.py
+
+# 5. 프론트엔드 빌드
+cd src/frontend && npm install && npm run build && cd ../..
+
+# 6. 서버 실행
+cd src/backend && uvicorn app.main:app --port 8000
+
+# 7. http://localhost:8000 접속
 ```
 
 ### 데이터가 없을 때
 
-처음 실행하면 DB가 비어있어 랭킹이 표시되지 않습니다. 데이터를 채우려면:
+Google Drive에서 데이터를 받지 않았다면 DB가 비어있어 랭킹이 표시되지 않습니다:
 
-1. `.env`에 네이버/DART/FMP API 키 입력
-2. `python scripts/daily_news_pipeline.py` 실행 (~25분)
-3. 파이프라인 완료 후 랭킹 페이지에 데이터 표시됨
+```bash
+python scripts/setup_data.py    # Google Drive 자동 다운로드
+python scripts/init_mysql.py    # MySQL 적재
+```
 
-또는 관리자 페이지(`/admin`, 로그인 필요)에서 원버튼으로 파이프라인 실행 가능.
+또는 API 키가 있다면 파이프라인으로 처음부터 생성:
+```bash
+python scripts/daily_news_pipeline.py   # ~25분
+```
 
 ## 면책
 

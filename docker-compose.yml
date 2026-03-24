@@ -1,8 +1,10 @@
 services:
   db:
     image: mysql:8.0
+    container_name: kospi-mysql
+    command: --local-infile=1
     environment:
-      MYSQL_ROOT_PASSWORD: ${DB_PASSWORD}
+      MYSQL_ROOT_PASSWORD: ${DB_PASSWORD:-1234}
       MYSQL_DATABASE: ${DB_NAME:-kospi200}
     ports:
       - "3306:3306"
